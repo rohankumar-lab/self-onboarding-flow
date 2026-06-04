@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SO Flow Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+:root {
+  --red:#E8261A;--red-dim:#f9cac7;--red-bg:#fef0ef;
+  --ink:#16110f;--ink-2:#4a3b36;--ink-3:#9c8880;
+  --bg:#f4f1ed;--card:#ffffff;--border:#e6e0d8;
+  --green:#1a7a52;--green-bg:#e8f5ee;
+  --amber:#c47c0a;--amber-bg:#fef5e0;
+  --blue:#1d4ed8;--blue-bg:#eff4ff;
+  --sans:'Syne',sans-serif;--mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh;}
+#loader{position:fixed;inset:0;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;transition:opacity 0.4s ease;}
+#loader.hidden{opacity:0;pointer-events:none;}
+.loader-logo{display:flex;align-items:center;gap:10px;}
+.loader-dot{width:10px;height:10px;background:var(--red);border-radius:50%;animation:blink 1s infinite;}
+.loader-text{font-size:15px;font-weight:700;color:#fff;letter-spacing:0.08em;text-transform:uppercase;}
+.loader-sub{font-family:var(--mono);font-size:11px;color:#5a4f4a;letter-spacing:0.06em;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+header{background:var(--ink);height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo-mark{width:8px;height:8px;background:var(--red);border-radius:50%;}
+.logo-text{font-size:13px;font-weight:700;color:#fff;letter-spacing:0.06em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:16px;}
+.live-badge{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:#5a4f4a;letter-spacing:0.05em;}
+.live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:blink 2s infinite;}
+#last-updated{font-family:var(--mono);font-size:10px;color:#5a4f4a;}
+.tabs{background:var(--card);border-bottom:1px solid var(--border);display:flex;padding:0 28px;}
+.tab{padding:13px 18px 11px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;user-select:none;}
+.tab:hover{color:var(--ink-2);}
+.tab.active{color:var(--red);border-bottom-color:var(--red);}
+.page{display:none;padding:24px 28px 56px;}
+.page.active{display:block;}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 18px;position:relative;overflow:hidden;}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red);border-radius:8px 8px 0 0;}
+.kpi-label{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;}
+.kpi-value{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--ink);line-height:1;}
+.kpi-value.na{font-size:14px;color:var(--ink-3);}
+.kpi-sub{font-size:10px;color:var(--ink-3);margin-top:5px;line-height:1.4;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 20px;}
+.card-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px;}
+.card-sub{font-size:11px;color:var(--ink-3);margin-bottom:14px;line-height:1.4;}
+.funnel{display:flex;flex-direction:column;gap:7px;}
+.funnel-row{display:grid;grid-template-columns:130px 1fr 90px;align-items:center;gap:8px;}
+.f-label{font-size:11px;font-weight:600;color:var(--ink-2);text-align:right;}
+.f-track{height:20px;background:#f0ebe4;border-radius:3px;overflow:hidden;}
+.f-fill{height:100%;border-radius:3px;transition:width 0.8s cubic-bezier(.16,1,.3,1);}
+.f-fill.top{background:var(--red);}
+.f-fill.mid{background:#e8836e;}
+.f-fill.bottom{background:var(--red-dim);}
+.f-fill.end{background:var(--green);}
+.f-meta{display:flex;flex-direction:column;align-items:flex-end;}
+.f-count{font-family:var(--mono);font-size:11px;color:var(--ink-2);}
+.f-drop{font-family:var(--mono);font-size:10px;color:var(--amber);}
+.skip-table{width:100%;border-collapse:collapse;}
+.skip-table th{text-align:left;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-3);padding:6px 10px;border-bottom:1px solid var(--border);}
+.skip-table td{padding:8px 10px;border-bottom:1px solid #f3eee8;font-size:12px;color:var(--ink-2);}
+.skip-table tr:last-child td{border-bottom:none;}
+.skip-table tr:hover td{background:var(--bg);}
+.skip-bar-wrap{display:flex;align-items:center;gap:7px;}
+.skip-bar{height:6px;border-radius:2px;background:var(--red-dim);display:inline-block;}
+.skip-bar.hi{background:var(--red);}
+.mono{font-family:var(--mono);}
+.ab-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
+.ab-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 20px;}
+.ab-card.pending{border-style:dashed;background:var(--bg);}
+.ab-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+.ab-title{font-size:13px;font-weight:700;color:var(--ink);}
+.badge{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:3px 8px;border-radius:20px;}
+.badge.running{background:var(--amber-bg);color:var(--amber);}
+.badge.pending{background:#f0ebe4;color:var(--ink-3);}
+.badge.early{background:var(--blue-bg);color:var(--blue);}
+.ab-desc{font-size:11px;color:var(--ink-3);margin-bottom:14px;line-height:1.5;}
+.variants{display:flex;gap:8px;margin-bottom:12px;}
+.variant{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:11px 13px;}
+.v-label{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;}
+.v-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;}
+.v-key{font-size:11px;color:var(--ink-3);}
+.v-val{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink);}
+.v-val.hero{font-size:20px;color:var(--red);}
+.ab-note{font-size:11px;padding:8px 10px;border-radius:4px;line-height:1.5;border-left:3px solid;}
+.ab-note.warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber);}
+.ab-note.info{background:var(--blue-bg);color:var(--blue);border-color:var(--blue);}
+.pending-body{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 0;gap:8px;text-align:center;}
+.pending-icon{font-size:28px;opacity:0.25;}
+.pending-text{font-size:12px;color:var(--ink-3);max-width:220px;line-height:1.5;}
+.pill-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.pill{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;text-align:center;}
+.pill-val{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--ink);}
+.pill-key{font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px;}
+.notice{background:var(--amber-bg);border:1px solid #f5d78e;border-radius:8px;padding:10px 14px;font-size:11px;color:var(--amber);line-height:1.5;margin-bottom:20px;display:flex;gap:8px;align-items:flex-start;}
+.notice-icon{flex-shrink:0;font-size:14px;margin-top:1px;}
+canvas{max-height:220px;}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-logo"><div class="loader-dot"></div><div class="loader-text">SO Flow Dashboard</div></div>
+  <div class="loader-sub">Fetching live data…</div>
+</div>
+
+<header>
+  <div class="logo"><div class="logo-mark"></div><div class="logo-text">IPT · Self-Onboarding Flow</div></div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    <div id="last-updated">—</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="funnel">Funnel Health</div>
+  <div class="tab" data-tab="ab">A/B Tests</div>
+</div>
+
+<div class="page active" id="tab-funnel">
+  <div id="notice-leads" class="notice" style="display:none">
+    <div class="notice-icon">⚠</div>
+    <div><strong>Lead data not yet joined:</strong> All partners show 0 leads. Expected for new SO partners — the referral code join with IPT Customer Leads V2 will populate once partners start sharing leads.</div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">Flow Starts</div><div class="kpi-value" id="k-starts">—</div><div class="kpi-sub" id="k-starts-sub">—</div></div>
+    <div class="kpi"><div class="kpi-label">Calc Engagement</div><div class="kpi-value" id="k-calc">—</div><div class="kpi-sub" id="k-calc-sub">—</div></div>
+    <div class="kpi"><div class="kpi-label">Referral Link Copied</div><div class="kpi-value" id="k-reflink">—</div><div class="kpi-sub" id="k-reflink-sub">—</div></div>
+    <div class="kpi"><div class="kpi-label">CT Lead Event</div><div class="kpi-value" id="k-lead">—</div><div class="kpi-sub">first_lead_shared fired</div></div>
+    <div class="kpi"><div class="kpi-label">Activated</div><div class="kpi-value" id="k-activated">—</div><div class="kpi-sub">converted in CRM</div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Screen-by-Screen Funnel</div><div class="card-sub">Unique partners who reached each screen</div><div class="funnel" id="funnel-bars"></div></div>
+    <div class="card"><div class="card-title">Daily Flow Starts</div><div class="card-sub">New unique partners entering the flow each day</div><canvas id="chart-daily"></canvas></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Screen Skip Analysis</div><div class="card-sub">Which screens partners skipped</div><table class="skip-table" id="skip-table"></table></div>
+    <div class="card"><div class="card-title">Screen Depth Distribution</div><div class="card-sub">Unique screens viewed per partner (max 7)</div><canvas id="chart-depth"></canvas></div>
+  </div>
+  <div class="grid-3">
+    <div class="card"><div class="card-title">Calculator Engagement</div><div class="card-sub">Partners who submitted a value</div><div class="pill-row" id="calc-pills"></div><canvas id="chart-calc-lic"></canvas></div>
+    <div class="card"><div class="card-title">Referral Action</div><div class="card-sub">Link vs code copies</div><canvas id="chart-reflink"></canvas></div>
+    <div class="card"><div class="card-title">Platform</div><div class="card-sub">Browser used to open flow</div><canvas id="chart-platform"></canvas></div>
+  </div>
+</div>
+
+<div class="page" id="tab-ab">
+  <div class="notice">
+    <div class="notice-icon">ℹ</div>
+    <div><strong>Early stage — 23 partners across variants.</strong> Primary metric (lead shared / activated) not yet meaningful. Intermediate metrics give directional signal only.</div>
+  </div>
+  <div class="ab-grid">
+    <div class="ab-card">
+      <div class="ab-header"><div class="ab-title">E2 — First Visit Experience</div><span class="badge early">Early Data</span></div>
+      <div class="ab-desc">Tests guided onboarding flow structure. Primary: first lead shared. Intermediate proxies shown below. Variant A not yet live.</div>
+      <div class="variants" id="e2-variants"></div>
+      <canvas id="chart-e2" style="max-height:160px;margin-bottom:12px"></canvas>
+      <div class="ab-note warn">⚠ Variant A not firing yet. Need ~200 partners per variant before primary metric is meaningful.</div>
+    </div>
+    <div class="ab-card">
+      <div class="ab-header"><div class="ab-title">Calc Variant — Gold vs Platinum</div><span class="badge running">Running</span></div>
+      <div class="ab-desc">Gold = exact earnings. Platinum = "Up to X". Primary proxy: avg licences selected (partner ambition signal).</div>
+      <div class="variants" id="calc-variants"></div>
+      <canvas id="chart-calc-ab" style="max-height:140px;margin-bottom:12px"></canvas>
+      <div class="ab-note info" id="calc-note"></div>
+    </div>
+  </div>
+  <div class="ab-grid">
+    <div class="ab-card pending">
+      <div class="ab-header"><div class="ab-title">E1 — Hunting Gate</div><span class="badge pending">Not Launched</span></div>
+      <div class="ab-desc">Gates hunting agent assignment on first lead shared.</div>
+      <div class="pending-body"><div class="pending-icon">🚧</div><div class="pending-text">No events yet. Will show activation rate and time-to-first-lead per arm once launched.</div></div>
+    </div>
+    <div class="ab-card pending">
+      <div class="ab-header"><div class="ab-title">E3 — SO Threshold</div><span class="badge pending">Not Launched</span></div>
+      <div class="ab-desc">KYC vs profile-complete vs first-lead-shared as SO definition.</div>
+      <div class="pending-body"><div class="pending-icon">🚧</div><div class="pending-text">No events yet. Will compare qualified SO rates across all three threshold definitions.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1S4GPV8-Ptd5ixz3DC0cDLOUc4iYlQ7dClcwx5y1cmYQ';
+const GID      = '750899336';
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
+const PROXY = 'https://api.allorigins.win/raw?url=';
+
+const R='#E8261A',RD='#f9cac7',G='#1a7a52',A='#c47c0a',BL='#1d4ed8';
+Chart.defaults.font.family = "'Syne', sans-serif";
+Chart.defaults.color = '#9c8880';
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+  });
+});
+
+const bool = v => v===true||v==='true'||v==='True'||v==='TRUE';
+const num  = v => parseFloat(v)||0;
+const pct  = (n,d) => d ? (n/d*100).toFixed(1)+'%' : '—';
+const fmtK = n => n>=1000 ? '₹'+(n/1000).toFixed(0)+'K' : n>0 ? '₹'+n : '—';
+
+async function init() {
+  let data;
+  try {
+    const res = await fetch(PROXY + encodeURIComponent(SHEET_URL));
+    const csv = await res.text();
+    await new Promise(resolve => {
+      Papa.parse(csv, { header:true, skipEmptyLines:true, complete: r => { data = r.data; resolve(); }});
+    });
+  } catch(e) {
+    document.querySelector('.loader-sub').textContent = 'Failed to load. Check sheet is public.';
+    return;
+  }
+  data = data.filter(r => r.referral_code && r.referral_code !== 'DEMO123');
+  document.getElementById('last-updated').textContent = 'Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('loader').classList.add('hidden');
+  buildFunnel(data);
+  buildAB(data);
+}
+
+function buildFunnel(data) {
+  const n = data.length;
+  const calcInt   = data.filter(r=>bool(r.calc_interacted)).length;
+  const refCopied = data.filter(r=>bool(r.referral_link_copied)).length;
+  const ctLead    = data.filter(r=>bool(r.ct_first_lead_event_fired)).length;
+  const activated = data.filter(r=>bool(r.activated)).length;
+
+  if (data.every(r=>num(r.total_leads)===0)) document.getElementById('notice-leads').style.display='flex';
+
+  document.getElementById('k-starts').textContent     = n;
+  document.getElementById('k-starts-sub').textContent = `${[...new Set(data.map(r=>r.flow_start_date).filter(Boolean))].length} days`;
+  document.getElementById('k-calc').textContent       = pct(calcInt,n);
+  document.getElementById('k-calc-sub').textContent   = `${calcInt} of ${n} partners`;
+  document.getElementById('k-reflink').textContent    = pct(refCopied,n);
+  document.getElementById('k-reflink-sub').textContent= `${refCopied} of ${n} partners`;
+  document.getElementById('k-lead').textContent       = ctLead>0 ? pct(ctLead,n) : '0%';
+  document.getElementById('k-activated').textContent  = activated>0 ? pct(activated,n) : '0%';
+
+  // Funnel
+  const steps = [
+    {label:'Flow Start',    cnt:n},
+    {label:'Welcome',       cnt:data.filter(r=>bool(r.saw_welcome)).length},
+    {label:'Customers',     cnt:data.filter(r=>bool(r.saw_customers)).length},
+    {label:'Calculator',    cnt:data.filter(r=>bool(r.saw_calculator)).length},
+    {label:'Process',       cnt:data.filter(r=>bool(r.saw_process)).length},
+    {label:'Features',      cnt:data.filter(r=>bool(r.saw_features)).length},
+    {label:'Share Methods', cnt:data.filter(r=>bool(r.saw_share_methods)).length},
+    {label:'First Lead',    cnt:data.filter(r=>bool(r.saw_first_lead)).length},
+    {label:'CT Lead Event', cnt:ctLead},
+  ];
+  const cls = i => i===0?'top':i<5?'mid':i<8?'bottom':'end';
+  const wrap = document.getElementById('funnel-bars');
+  steps.forEach((s,i) => {
+    const prev = i>0 ? steps[i-1].cnt : s.cnt;
+    const drop = prev - s.cnt;
+    const w = ((s.cnt/n)*100).toFixed(0);
+    wrap.innerHTML += `<div class="funnel-row">
+      <div class="f-label">${s.label}</div>
+      <div class="f-track"><div class="f-fill ${cls(i)}" style="width:${w}%"></div></div>
+      <div class="f-meta">
+        <span class="f-count">${s.cnt} <span style="font-size:10px;color:var(--ink-3)">(${w}%)</span></span>
+        ${drop>0?`<span class="f-drop">−${drop}</span>`:''}
+      </div>
+    </div>`;
+  });
+
+  // Daily
+  const dm={};
+  data.forEach(r=>{const d=r.flow_start_date||'';if(d)dm[d]=(dm[d]||0)+1;});
+  const dates=Object.keys(dm).sort((a,b)=>new Date(a)-new Date(b));
+  new Chart(document.getElementById('chart-daily'),{
+    type:'bar',
+    data:{
+      labels:dates.map(d=>new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short'})),
+      datasets:[{label:'Starts',data:dates.map(d=>dm[d]),backgroundColor:R,borderRadius:4,barThickness:28}]
+    },
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'},ticks:{precision:0}},x:{grid:{display:false}}}}
+  });
+
+  // Skip table
+  const skipDefs=[
+    {name:'Welcome (0)',      col:'skipped_welcome',      note:'⚠ Highest — first impression issue'},
+    {name:'First Lead (6)',   col:'skipped_first_lead',   note:'Low dwell before skipping'},
+    {name:'Share Methods (5)',col:'skipped_share_methods', note:''},
+    {name:'Calculator (2)',   col:'skipped_calculator',    note:''},
+    {name:'Process (3)',      col:'skipped_process',       note:''},
+    {name:'Features (4)',     col:'skipped_features',      note:''},
+    {name:'Customers (1)',    col:'skipped_customers',     note:'✓ No skips recorded'},
+  ];
+  const maxSk = Math.max(...skipDefs.map(s=>data.filter(r=>bool(r[s.col])).length),1);
+  const tbl = document.getElementById('skip-table');
+  tbl.innerHTML='<thead><tr><th>Screen</th><th>Skips</th><th>Signal</th></tr></thead><tbody>';
+  skipDefs.forEach(s=>{
+    const cnt=data.filter(r=>bool(r[s.col])).length;
+    const w=Math.round((cnt/maxSk)*56);
+    tbl.innerHTML+=`<tr>
+      <td class="mono">${s.name}</td>
+      <td><div class="skip-bar-wrap"><span class="skip-bar ${cnt===maxSk&&cnt>0?'hi':''}" style="width:${w}px"></span><span class="mono">${cnt}</span></div></td>
+      <td style="font-size:11px;color:var(--ink-3)">${s.note}</td>
+    </tr>`;
+  });
+  tbl.innerHTML+='</tbody>';
+
+  // Screen depth
+  const dm2={};
+  data.forEach(r=>{const d=String(num(r.screen_depth));dm2[d]=(dm2[d]||0)+1;});
+  const dkeys=Object.keys(dm2).sort((a,b)=>+a-+b);
+  new Chart(document.getElementById('chart-depth'),{
+    type:'bar',
+    data:{
+      labels:dkeys.map(d=>d+(d==='7'?' ✓':'')),
+      datasets:[{label:'Partners',data:dkeys.map(d=>dm2[d]),backgroundColor:dkeys.map(d=>d==='7'?G:d==='0'?'#e8e0d8':R),borderRadius:4,barThickness:22}]
+    },
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'},ticks:{precision:0}},x:{grid:{display:false},title:{display:true,text:'Screens viewed'}}}}
+  });
+
+  // Calc pills
+  const cs=data.filter(r=>bool(r.calc_interacted)&&num(r.calc_final_licenses)>0);
+  const avgL=cs.length?(cs.reduce((s,r)=>s+num(r.calc_final_licenses),0)/cs.length).toFixed(1):'—';
+  const avgE=cs.length?Math.round(cs.reduce((s,r)=>s+num(r.calc_final_monthly_earnings),0)/cs.length):0;
+  document.getElementById('calc-pills').innerHTML=`
+    <div class="pill"><div class="pill-val">${calcInt}</div><div class="pill-key">Submitted</div></div>
+    <div class="pill"><div class="pill-val">${avgL}</div><div class="pill-key">Avg Licences</div></div>
+    <div class="pill"><div class="pill-val">${fmtK(avgE)}</div><div class="pill-key">Avg Monthly</div></div>`;
+
+  // Calc lic distribution
+  const lb={'1':0,'2':0,'3–5':0,'6–9':0,'10–19':0,'20+':0};
+  cs.forEach(r=>{const l=num(r.calc_final_licenses);if(l===1)lb['1']++;else if(l===2)lb['2']++;else if(l<=5)lb['3–5']++;else if(l<=9)lb['6–9']++;else if(l<=19)lb['10–19']++;else lb['20+']++;});
+  new Chart(document.getElementById('chart-calc-lic'),{
+    type:'bar',
+    data:{labels:Object.keys(lb),datasets:[{label:'Partners',data:Object.values(lb),backgroundColor:[RD,RD,R,R,R,R],borderRadius:3,barThickness:18}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'},ticks:{precision:0}},x:{grid:{display:false}}}}
+  });
+
+  // Referral donut
+  const lk=data.filter(r=>bool(r.copied_link)).length;
+  const cd=data.filter(r=>bool(r.copied_code)).length;
+  new Chart(document.getElementById('chart-reflink'),{
+    type:'doughnut',
+    data:{labels:['Link','Code','Not Copied'],datasets:[{data:[lk,cd,n-refCopied],backgroundColor:[R,RD,'#f0ebe4'],borderWidth:0}]},
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}},cutout:'62%'}
+  });
+
+  // Platform donut
+  const pm={};
+  data.forEach(r=>{const p=r.platform||'Unknown';pm[p]=(pm[p]||0)+1;});
+  new Chart(document.getElementById('chart-platform'),{
+    type:'doughnut',
+    data:{labels:Object.keys(pm),datasets:[{data:Object.values(pm),backgroundColor:[R,RD,'#e8e0d8'],borderWidth:0}]},
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}},cutout:'62%'}
+  });
+}
+
+function buildAB(data) {
+  // E2 variants — a, b, c
+  const e2Wrap = document.getElementById('e2-variants');
+  ['b','c','a'].forEach(v => {
+    const sub = v==='a' ? [] : data.filter(r=>r.e2_variant===v);
+    const n=sub.length;
+    const calc = n?sub.filter(r=>bool(r.calc_interacted)).length:0;
+    const rl   = n?sub.filter(r=>bool(r.referral_link_copied)).length:0;
+    const lead = n?sub.filter(r=>bool(r.ct_first_lead_event_fired)).length:0;
+    const dep  = n?(sub.reduce((s,r)=>s+num(r.screen_depth),0)/n).toFixed(1):'—';
+    e2Wrap.innerHTML+=`<div class="variant">
+      <div class="v-label">Variant ${v.toUpperCase()}${v==='a'?' (not live)':''}</div>
+      <div class="v-row"><span class="v-key">Partners</span><span class="v-val hero">${n||0}</span></div>
+      <div class="v-row"><span class="v-key">Calc engaged</span><span class="v-val">${n?pct(calc,n):'—'}</span></div>
+      <div class="v-row"><span class="v-key">Ref link copied</span><span class="v-val">${n?pct(rl,n):'—'}</span></div>
+      <div class="v-row"><span class="v-key">CT lead fired</span><span class="v-val">${n?pct(lead,n):'—'}</span></div>
+      <div class="v-row"><span class="v-key">Avg depth</span><span class="v-val">${dep}</span></div>
+    </div>`;
+  });
+
+  const e2B=data.filter(r=>r.e2_variant==='b');
+  const e2C=data.filter(r=>r.e2_variant==='c');
+  const calcP=sub=>sub.length?(sub.filter(r=>bool(r.calc_interacted)).length/sub.length*100).toFixed(1):0;
+  const rlP  =sub=>sub.length?(sub.filter(r=>bool(r.referral_link_copied)).length/sub.length*100).toFixed(1):0;
+  const depA =sub=>sub.length?(sub.reduce((s,r)=>s+num(r.screen_depth),0)/sub.length*10).toFixed(0):0;
+
+  new Chart(document.getElementById('chart-e2'),{
+    type:'bar',
+    data:{
+      labels:['Calc Engaged %','Ref Link Copied %','Screen Depth ×10'],
+      datasets:[
+        {label:'B',data:[calcP(e2B),rlP(e2B),depA(e2B)],backgroundColor:R,borderRadius:4,barThickness:22},
+        {label:'C',data:[calcP(e2C),rlP(e2C),depA(e2C)],backgroundColor:RD,borderRadius:4,barThickness:22},
+      ]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'}},x:{grid:{display:false}}}}
+  });
+
+  // Calc variants
+  const calcWrap=document.getElementById('calc-variants');
+  const avgLicOf=sub=>{const s=sub.filter(r=>bool(r.calc_interacted)&&num(r.calc_final_licenses)>0);return s.length?(s.reduce((a,r)=>a+num(r.calc_final_licenses),0)/s.length).toFixed(1):'—';};
+  const avgEarnOf=sub=>{const s=sub.filter(r=>bool(r.calc_interacted)&&num(r.calc_final_monthly_earnings)>0);return s.length?Math.round(s.reduce((a,r)=>a+num(r.calc_final_monthly_earnings),0)/s.length):0;};
+  const cgold=data.filter(r=>r.calc_variant==='gold');
+  const cplat=data.filter(r=>r.calc_variant==='platinum');
+
+  [['gold',cgold],['platinum',cplat]].forEach(([v,sub])=>{
+    const n=sub.length;
+    const int2=sub.filter(r=>bool(r.calc_interacted)).length;
+    const rl=sub.filter(r=>bool(r.referral_link_copied)).length;
+    calcWrap.innerHTML+=`<div class="variant">
+      <div class="v-label">${v.charAt(0).toUpperCase()+v.slice(1)}</div>
+      <div class="v-row"><span class="v-key">Partners</span><span class="v-val hero">${n}</span></div>
+      <div class="v-row"><span class="v-key">Calc interacted</span><span class="v-val">${pct(int2,n)}</span></div>
+      <div class="v-row"><span class="v-key">Avg licences</span><span class="v-val">${avgLicOf(sub)}</span></div>
+      <div class="v-row"><span class="v-key">Avg monthly earn</span><span class="v-val">${fmtK(avgEarnOf(sub))}</span></div>
+      <div class="v-row"><span class="v-key">Ref link copied</span><span class="v-val">${pct(rl,n)}</span></div>
+    </div>`;
+  });
+
+  const goldL=parseFloat(avgLicOf(cgold))||0;
+  const platL=parseFloat(avgLicOf(cplat))||0;
+  const diff=platL>0&&goldL>0?((platL-goldL)/goldL*100).toFixed(0):null;
+  document.getElementById('calc-note').className='ab-note info';
+  document.getElementById('calc-note').innerHTML = diff
+    ? `ℹ Platinum shows ${platL} avg licences vs Gold's ${goldL} — ${diff}% higher. Early signal that aspirational framing raises ambition. Confirm at n≥50 per arm.`
+    : `ℹ Not enough calculator interactions yet to compare variants.`;
+
+  new Chart(document.getElementById('chart-calc-ab'),{
+    type:'bar',
+    data:{
+      labels:['Avg Licences','Avg Monthly Earn (₹K)'],
+      datasets:[
+        {label:'Gold',    data:[goldL, Math.round(avgEarnOf(cgold)/1000)],backgroundColor:'#f59e0b',borderRadius:4,barThickness:28},
+        {label:'Platinum',data:[platL, Math.round(avgEarnOf(cplat)/1000)],backgroundColor:'#6366f1',borderRadius:4,barThickness:28},
+      ]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'}},x:{grid:{display:false}}}}
+  });
+}
+
+init();
+</script>
+</body>
+</html>
