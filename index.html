@@ -3,445 +3,1049 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SO Flow Dashboard</title>
+<title>SO Flow — IPT Analytics</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
 :root {
-  --red:#E8261A;--red-dim:#f9cac7;--red-bg:#fef0ef;
-  --ink:#16110f;--ink-2:#4a3b36;--ink-3:#9c8880;
-  --bg:#f4f1ed;--card:#ffffff;--border:#e6e0d8;
-  --green:#1a7a52;--green-bg:#e8f5ee;
-  --amber:#c47c0a;--amber-bg:#fef5e0;
-  --blue:#1d4ed8;--blue-bg:#eff4ff;
-  --sans:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --bg:       #0c0c0c;
+  --s1:       #141414;
+  --s2:       #1c1c1c;
+  --s3:       #242424;
+  --border:   #2c2c2c;
+  --border-2: #383838;
+  --text:     #f0ece6;
+  --text-2:   #888480;
+  --text-3:   #484442;
+  --red:      #E8261A;
+  --red-bg:   rgba(232,38,26,0.12);
+  --red-dim:  rgba(232,38,26,0.06);
+  --green:    #22c55e;
+  --green-bg: rgba(34,197,94,0.1);
+  --amber:    #f59e0b;
+  --amber-bg: rgba(245,158,11,0.1);
+  --blue:     #60a5fa;
+  --blue-bg:  rgba(96,165,250,0.1);
+  --sans:     'Instrument Sans', sans-serif;
+  --mono:     'IBM Plex Mono', monospace;
+  --sidebar:  240px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh;}
-#loader{position:fixed;inset:0;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;transition:opacity 0.4s ease;}
-#loader.hidden{opacity:0;pointer-events:none;}
-.loader-logo{display:flex;align-items:center;gap:10px;}
-.loader-dot{width:10px;height:10px;background:var(--red);border-radius:50%;animation:blink 1s infinite;}
-.loader-text{font-size:15px;font-weight:700;color:#fff;letter-spacing:0.08em;text-transform:uppercase;}
-.loader-sub{font-family:var(--mono);font-size:11px;color:#5a4f4a;letter-spacing:0.06em;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
-header{background:var(--ink);height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100;}
-.logo{display:flex;align-items:center;gap:8px;}
-.logo-mark{width:8px;height:8px;background:var(--red);border-radius:50%;}
-.logo-text{font-size:13px;font-weight:700;color:#fff;letter-spacing:0.06em;text-transform:uppercase;}
-.header-right{display:flex;align-items:center;gap:16px;}
-.live-badge{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:#5a4f4a;letter-spacing:0.05em;}
-.live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:blink 2s infinite;}
-#last-updated{font-family:var(--mono);font-size:10px;color:#5a4f4a;}
-.tabs{background:var(--card);border-bottom:1px solid var(--border);display:flex;padding:0 28px;}
-.tab{padding:13px 18px 11px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;user-select:none;}
-.tab:hover{color:var(--ink-2);}
-.tab.active{color:var(--red);border-bottom-color:var(--red);}
-.page{display:none;padding:24px 28px 56px;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex;}
+
+/* ─── LOADER ─────────────────────────────────────────────── */
+#loader{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;z-index:1000;transition:opacity 0.5s ease;
+}
+#loader.out{opacity:0;pointer-events:none;}
+.ld-logo{display:flex;align-items:center;gap:10px;}
+.ld-dot{width:10px;height:10px;background:var(--red);border-radius:50%;}
+.ld-title{font-family:var(--mono);font-size:14px;color:var(--text);letter-spacing:0.1em;}
+.ld-bar{width:200px;height:2px;background:var(--s3);border-radius:2px;overflow:hidden;}
+.ld-fill{height:100%;background:var(--red);border-radius:2px;width:0;transition:width 0.6s ease;}
+.ld-status{font-family:var(--mono);font-size:11px;color:var(--text-3);letter-spacing:0.06em;}
+
+/* ─── SIDEBAR ────────────────────────────────────────────── */
+#sidebar{
+  width:var(--sidebar);min-width:var(--sidebar);
+  height:100vh;background:var(--s1);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;flex-shrink:0;
+}
+.sb-top{padding:20px 18px 16px;border-bottom:1px solid var(--border);}
+.sb-logo{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.sb-logo-dot{width:7px;height:7px;background:var(--red);border-radius:50%;}
+.sb-logo-text{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text);letter-spacing:0.08em;text-transform:uppercase;}
+.sb-subtitle{font-size:10px;color:var(--text-3);padding-left:15px;letter-spacing:0.04em;}
+
+.sb-section{padding:14px 18px;}
+.sb-section-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px;}
+
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:6px;
+  cursor:pointer;transition:background 0.15s;
+  margin-bottom:2px;user-select:none;
+}
+.nav-item:hover{background:var(--s3);}
+.nav-item.active{background:var(--red-bg);}
+.nav-icon{width:16px;height:16px;opacity:0.5;flex-shrink:0;}
+.nav-item.active .nav-icon{opacity:1;}
+.nav-label{font-size:12px;font-weight:500;color:var(--text-2);}
+.nav-item.active .nav-label{color:var(--text);}
+.nav-badge{margin-left:auto;font-family:var(--mono);font-size:9px;padding:2px 6px;background:var(--s3);border-radius:3px;color:var(--text-3);}
+.nav-item.active .nav-badge{background:var(--red-bg);color:var(--red);}
+
+.sb-divider{height:1px;background:var(--border);margin:4px 18px;}
+
+/* Health indicators */
+.health-row{display:flex;flex-direction:column;gap:8px;}
+.health-item{display:flex;align-items:center;justify-content:space-between;}
+.health-label{font-size:11px;color:var(--text-2);}
+.health-dot{width:6px;height:6px;border-radius:50%;}
+.health-dot.warn{background:var(--amber);}
+.health-dot.ok{background:var(--green);}
+.health-dot.na{background:var(--text-3);}
+
+.sb-bottom{margin-top:auto;padding:14px 18px;border-top:1px solid var(--border);}
+.sb-updated{font-family:var(--mono);font-size:9px;color:var(--text-3);letter-spacing:0.04em;}
+.sb-live{display:flex;align-items:center;gap:5px;margin-top:4px;}
+.sb-live-dot{width:5px;height:5px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;}
+.sb-live-text{font-family:var(--mono);font-size:9px;color:var(--green);letter-spacing:0.06em;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ─── MAIN AREA ──────────────────────────────────────────── */
+#main{flex:1;height:100vh;overflow-y:auto;overflow-x:hidden;}
+#main::-webkit-scrollbar{width:5px;}
+#main::-webkit-scrollbar-track{background:transparent;}
+#main::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+.page{display:none;padding:28px 32px 60px;animation:fadeIn 0.3s ease;}
 .page.active{display:block;}
-.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}
-.kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 18px;position:relative;overflow:hidden;}
-.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red);border-radius:8px 8px 0 0;}
-.kpi-label{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;}
-.kpi-value{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--ink);line-height:1;}
-.kpi-value.na{font-size:14px;color:var(--ink-3);}
-.kpi-sub{font-size:10px;color:var(--ink-3);margin-top:5px;line-height:1.4;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── PAGE HEADER ────────────────────────────────────────── */
+.page-header{margin-bottom:28px;}
+.page-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.page-sub{font-size:12px;color:var(--text-3);}
+
+/* ─── INSIGHT BANNER ─────────────────────────────────────── */
+.insight-banner{
+  background:var(--red-bg);border:1px solid rgba(232,38,26,0.25);
+  border-radius:8px;padding:14px 18px;margin-bottom:24px;
+  display:flex;align-items:flex-start;gap:14px;
+}
+.insight-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.insight-body{}
+.insight-title{font-size:13px;font-weight:700;color:var(--red);margin-bottom:3px;}
+.insight-text{font-size:12px;color:var(--text-2);line-height:1.6;}
+.insight-banner.amber{background:var(--amber-bg);border-color:rgba(245,158,11,0.25);}
+.insight-banner.amber .insight-title{color:var(--amber);}
+.insight-banner.blue{background:var(--blue-bg);border-color:rgba(96,165,250,0.25);}
+.insight-banner.blue .insight-title{color:var(--blue);}
+
+/* ─── SEGMENT HERO ROW ───────────────────────────────────── */
+.segment-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;}
+.segment-card{
+  background:var(--s1);border:1px solid var(--border);border-radius:10px;
+  padding:20px 22px;position:relative;overflow:hidden;cursor:default;
+  transition:border-color 0.2s;
+}
+.segment-card:hover{border-color:var(--border-2);}
+.segment-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.segment-card.bounce::before{background:var(--red);}
+.segment-card.partial::before{background:var(--amber);}
+.segment-card.deep::before{background:var(--green);}
+.seg-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;}
+.seg-label.bounce{color:var(--red);}
+.seg-label.partial{color:var(--amber);}
+.seg-label.deep{color:var(--green);}
+.seg-number{font-family:var(--mono);font-size:44px;font-weight:600;line-height:1;margin-bottom:6px;}
+.seg-number.bounce{color:var(--red);}
+.seg-number.partial{color:var(--amber);}
+.seg-number.deep{color:var(--green);}
+.seg-desc{font-size:11px;color:var(--text-3);line-height:1.5;}
+.seg-def{font-size:10px;color:var(--text-3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+
+/* ─── GRID LAYOUTS ───────────────────────────────────────── */
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px;}
-.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 20px;}
-.card-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px;}
-.card-sub{font-size:11px;color:var(--ink-3);margin-bottom:14px;line-height:1.4;}
-.funnel{display:flex;flex-direction:column;gap:7px;}
-.funnel-row{display:grid;grid-template-columns:130px 1fr 90px;align-items:center;gap:8px;}
-.f-label{font-size:11px;font-weight:600;color:var(--ink-2);text-align:right;}
-.f-track{height:20px;background:#f0ebe4;border-radius:3px;overflow:hidden;}
-.f-fill{height:100%;border-radius:3px;transition:width 0.8s cubic-bezier(.16,1,.3,1);}
-.f-fill.top{background:var(--red);}
-.f-fill.mid{background:#e8836e;}
-.f-fill.bottom{background:var(--red-dim);}
-.f-fill.end{background:var(--green);}
-.f-meta{display:flex;flex-direction:column;align-items:flex-end;}
-.f-count{font-family:var(--mono);font-size:11px;color:var(--ink-2);}
-.f-drop{font-family:var(--mono);font-size:10px;color:var(--amber);}
-.skip-table{width:100%;border-collapse:collapse;}
-.skip-table th{text-align:left;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-3);padding:6px 10px;border-bottom:1px solid var(--border);}
-.skip-table td{padding:8px 10px;border-bottom:1px solid #f3eee8;font-size:12px;color:var(--ink-2);}
-.skip-table tr:last-child td{border-bottom:none;}
-.skip-table tr:hover td{background:var(--bg);}
-.skip-bar-wrap{display:flex;align-items:center;gap:7px;}
-.skip-bar{height:6px;border-radius:2px;background:var(--red-dim);display:inline-block;}
-.skip-bar.hi{background:var(--red);}
-.mono{font-family:var(--mono);}
-.ab-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
-.ab-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 20px;}
-.ab-card.pending{border-style:dashed;background:var(--bg);}
-.ab-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
-.ab-title{font-size:13px;font-weight:700;color:var(--ink);}
-.badge{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:3px 8px;border-radius:20px;}
-.badge.running{background:var(--amber-bg);color:var(--amber);}
-.badge.pending{background:#f0ebe4;color:var(--ink-3);}
-.badge.early{background:var(--blue-bg);color:var(--blue);}
-.ab-desc{font-size:11px;color:var(--ink-3);margin-bottom:14px;line-height:1.5;}
-.variants{display:flex;gap:8px;margin-bottom:12px;}
-.variant{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:11px 13px;}
-.v-label{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;}
-.v-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;}
-.v-key{font-size:11px;color:var(--ink-3);}
-.v-val{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink);}
-.v-val.hero{font-size:20px;color:var(--red);}
-.ab-note{font-size:11px;padding:8px 10px;border-radius:4px;line-height:1.5;border-left:3px solid;}
-.ab-note.warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber);}
-.ab-note.info{background:var(--blue-bg);color:var(--blue);border-color:var(--blue);}
-.pending-body{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 0;gap:8px;text-align:center;}
-.pending-icon{font-size:28px;opacity:0.25;}
-.pending-text{font-size:12px;color:var(--ink-3);max-width:220px;line-height:1.5;}
-.pill-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
-.pill{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;text-align:center;}
-.pill-val{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--ink);}
-.pill-key{font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px;}
-.notice{background:var(--amber-bg);border:1px solid #f5d78e;border-radius:8px;padding:10px 14px;font-size:11px;color:var(--amber);line-height:1.5;margin-bottom:20px;display:flex;gap:8px;align-items:flex-start;}
-.notice-icon{flex-shrink:0;font-size:14px;margin-top:1px;}
-canvas{max-height:220px;}
+.grid-6-4{display:grid;grid-template-columns:6fr 4fr;gap:14px;margin-bottom:24px;}
+.grid-4-6{display:grid;grid-template-columns:4fr 6fr;gap:14px;margin-bottom:24px;}
+
+/* ─── CARDS ──────────────────────────────────────────────── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:18px 20px;}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;}
+.card-title{font-size:13px;font-weight:700;color:var(--text);}
+.card-sub{font-size:11px;color:var(--text-3);margin-bottom:16px;line-height:1.5;}
+.card-tag{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:3px 7px;border-radius:3px;}
+.card-tag.warn{background:var(--amber-bg);color:var(--amber);}
+.card-tag.ok{background:var(--green-bg);color:var(--green);}
+.card-tag.alert{background:var(--red-bg);color:var(--red);}
+.card-tag.info{background:var(--blue-bg);color:var(--blue);}
+
+/* ─── STAT INLINE ────────────────────────────────────────── */
+.stat-row{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;}
+.stat-num{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--text);}
+.stat-unit{font-size:12px;color:var(--text-3);}
+.stat-label{font-size:11px;color:var(--text-2);}
+.stat-context{font-size:10px;color:var(--text-3);margin-top:2px;}
+
+/* ─── FUNNEL BARS ────────────────────────────────────────── */
+.funnel-wrap{display:flex;flex-direction:column;gap:6px;}
+.funnel-row{display:grid;grid-template-columns:110px 1fr 80px;align-items:center;gap:10px;}
+.fn-label{font-size:11px;color:var(--text-2);text-align:right;font-weight:500;}
+.fn-track{height:18px;background:var(--s3);border-radius:3px;overflow:hidden;position:relative;}
+.fn-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+.fn-fill.s0{background:var(--text-3);}
+.fn-fill.s1{background:rgba(232,38,26,0.7);}
+.fn-fill.s2{background:rgba(232,38,26,0.55);}
+.fn-fill.s3{background:rgba(232,38,26,0.45);}
+.fn-fill.s4{background:rgba(232,38,26,0.35);}
+.fn-fill.s5{background:rgba(232,38,26,0.25);}
+.fn-fill.end{background:var(--green);}
+.fn-meta{display:flex;flex-direction:column;align-items:flex-end;gap:1px;}
+.fn-pct{font-family:var(--mono);font-size:11px;color:var(--text);}
+.fn-drop{font-family:var(--mono);font-size:9px;color:var(--red);}
+.fn-divider{height:1px;background:var(--border);margin:4px 0;}
+
+/* ─── TIME-ON-SCREEN TABLE ───────────────────────────────── */
+.tos-table{width:100%;border-collapse:collapse;}
+.tos-table th{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;}
+.tos-table td{padding:7px 10px;border-bottom:1px solid var(--s3);font-size:12px;color:var(--text-2);vertical-align:middle;}
+.tos-table tr:last-child td{border-bottom:none;}
+.tos-table tr:hover td{background:var(--s2);}
+.tos-bar-wrap{display:flex;align-items:center;gap:8px;}
+.tos-bar{height:5px;border-radius:2px;background:var(--blue);display:inline-block;min-width:2px;}
+.tos-na{color:var(--text-3);font-style:italic;font-size:11px;}
+
+/* ─── JOURNEY HEATMAP ────────────────────────────────────── */
+.heatmap-wrap{overflow-x:auto;}
+.heatmap{border-collapse:collapse;width:100%;min-width:500px;}
+.hm-th{font-family:var(--mono);font-size:9px;color:var(--text-3);padding:4px 6px;text-align:center;letter-spacing:0.06em;font-weight:600;}
+.hm-th.screen{font-size:8px;max-width:52px;}
+.hm-row:hover .hm-cell{filter:brightness(1.2);}
+.hm-cell{width:44px;height:28px;text-align:center;padding:0 3px;cursor:default;}
+.hm-dot{
+  width:28px;height:28px;border-radius:4px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:8px;font-weight:600;
+  margin:auto;
+}
+.hm-dot.yes{background:var(--red-bg);color:var(--red);}
+.hm-dot.skim{background:rgba(245,158,11,0.12);color:var(--amber);}
+.hm-dot.read{background:rgba(34,197,94,0.12);color:var(--green);}
+.hm-dot.no{background:var(--s3);color:var(--text-3);}
+.hm-dot.skipped{background:rgba(232,38,26,0.06);color:var(--text-3);}
+.hm-label{font-size:10px;color:var(--text-2);padding:0 8px;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
+.hm-variant{font-family:var(--mono);font-size:9px;padding:3px 6px;border-radius:3px;text-align:center;}
+.hm-variant.b{background:var(--red-bg);color:var(--red);}
+.hm-variant.c{background:var(--blue-bg);color:var(--blue);}
+.hm-legend{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;}
+.hm-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-3);}
+.hm-leg-dot{width:10px;height:10px;border-radius:2px;}
+
+/* ─── AB VARIANT PANELS ──────────────────────────────────── */
+.variant-compare{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+.vc-panel{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;}
+.vc-panel.inactive{opacity:0.4;border-style:dashed;}
+.vc-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.vc-label.b{color:var(--red);}
+.vc-label.c{color:var(--blue);}
+.vc-label.a{color:var(--text-3);}
+.vc-metric{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+.vc-key{font-size:11px;color:var(--text-3);}
+.vc-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text);}
+.vc-val.hero{font-size:22px;color:var(--text);}
+.vc-val.good{color:var(--green);}
+.vc-val.bad{color:var(--red);}
+.vc-val.na{color:var(--text-3);font-size:11px;}
+.vc-winner{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:0.08em;padding:2px 6px;border-radius:3px;background:var(--green-bg);color:var(--green);margin-left:6px;}
+.vc-note{font-size:10px;color:var(--text-3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);line-height:1.5;}
+
+/* ─── METRICS GRID ───────────────────────────────────────── */
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+.metric-cell{background:var(--s2);border-radius:6px;padding:12px 14px;}
+.mc-label{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;}
+.mc-value{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--text);}
+.mc-value.red{color:var(--red);}
+.mc-value.green{color:var(--green);}
+.mc-value.amber{color:var(--amber);}
+.mc-sub{font-size:10px;color:var(--text-3);margin-top:2px;}
+
+/* ─── PENDING EXPERIMENT ─────────────────────────────────── */
+.exp-pending{
+  background:var(--s1);border:1px dashed var(--border);border-radius:8px;
+  padding:24px;text-align:center;
+}
+.exp-pending-icon{font-size:24px;opacity:0.2;margin-bottom:8px;}
+.exp-pending-title{font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px;}
+.exp-pending-text{font-size:11px;color:var(--text-3);line-height:1.6;max-width:240px;margin:0 auto;}
+
+/* ─── PARTNER TABLE ──────────────────────────────────────── */
+.partner-table{width:100%;border-collapse:collapse;}
+.pt-th{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+.pt-td{padding:8px 12px;border-bottom:1px solid var(--s3);font-size:11px;color:var(--text-2);vertical-align:middle;}
+.pt-tr:hover .pt-td{background:var(--s2);}
+.pt-code{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text);}
+.journey-dots{display:flex;gap:3px;align-items:center;}
+.jd{width:14px;height:14px;border-radius:2px;flex-shrink:0;}
+.jd.yes{background:var(--red);}
+.jd.no{background:var(--s3);}
+.jd.act{background:var(--green);}
+.pt-variant{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;}
+.pt-variant.b{background:var(--red-bg);color:var(--red);}
+.pt-variant.c{background:var(--blue-bg);color:var(--blue);}
+.pt-depth{font-family:var(--mono);font-size:11px;color:var(--text);}
+.pt-badge{font-size:9px;padding:2px 7px;border-radius:3px;font-weight:600;}
+.pt-badge.calc{background:var(--amber-bg);color:var(--amber);}
+.pt-badge.link{background:var(--green-bg);color:var(--green);}
+.pt-badge.lead{background:var(--red-bg);color:var(--red);}
+.pt-badges{display:flex;gap:4px;flex-wrap:wrap;}
+
+canvas{max-height:240px;}
+
+/* ─── SECTION DIVIDER ────────────────────────────────────── */
+.section-label{
+  font-family:var(--mono);font-size:9px;font-weight:600;
+  letter-spacing:0.16em;text-transform:uppercase;color:var(--text-3);
+  margin-bottom:12px;display:flex;align-items:center;gap:10px;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ─── TOOLTIP ────────────────────────────────────────────── */
+#tooltip{
+  position:fixed;background:var(--s3);border:1px solid var(--border-2);
+  border-radius:6px;padding:8px 12px;font-size:11px;color:var(--text);
+  pointer-events:none;z-index:500;display:none;max-width:200px;line-height:1.5;
+}
 </style>
 </head>
 <body>
 
+<!-- LOADER -->
 <div id="loader">
-  <div class="loader-logo"><div class="loader-dot"></div><div class="loader-text">SO Flow Dashboard</div></div>
-  <div class="loader-sub">Fetching live data…</div>
+  <div class="ld-logo"><div class="ld-dot"></div><div class="ld-title">SO FLOW / IPT</div></div>
+  <div class="ld-bar"><div class="ld-fill" id="ld-fill"></div></div>
+  <div class="ld-status" id="ld-status">Connecting to data source…</div>
 </div>
 
-<header>
-  <div class="logo"><div class="logo-mark"></div><div class="logo-text">IPT · Self-Onboarding Flow</div></div>
-  <div class="header-right">
-    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
-    <div id="last-updated">—</div>
-  </div>
-</header>
+<div id="tooltip"></div>
 
-<div class="tabs">
-  <div class="tab active" data-tab="funnel">Funnel Health</div>
-  <div class="tab" data-tab="ab">A/B Tests</div>
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sb-top">
+    <div class="sb-logo"><div class="sb-logo-dot"></div><div class="sb-logo-text">IPT Analytics</div></div>
+    <div class="sb-subtitle">Self-Onboarding Flow</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Views</div>
+    <div class="nav-item active" data-page="overview">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".5"/></svg>
+      <span class="nav-label">Overview</span>
+      <span class="nav-badge" id="nb-partners">—</span>
+    </div>
+    <div class="nav-item" data-page="funnel">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M2 3h12l-4 5v5l-4-2V8L2 3z" fill="currentColor" opacity=".7"/></svg>
+      <span class="nav-label">Funnel</span>
+    </div>
+    <div class="nav-item" data-page="experiments">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="8" r="3" fill="currentColor" opacity=".7"/><circle cx="11" cy="8" r="3" fill="currentColor" opacity=".4"/><path d="M8 5.5v5" stroke="currentColor" stroke-width="1"/></svg>
+      <span class="nav-label">Experiments</span>
+      <span class="nav-badge">2 live</span>
+    </div>
+    <div class="nav-item" data-page="partners">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="5" r="2.5" fill="currentColor" opacity=".7"/><circle cx="11" cy="5" r="2.5" fill="currentColor" opacity=".4"/><path d="M1 13c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" stroke-width="1.2"/><path d="M10 9c1.7.3 3 1.9 3 3.8" stroke="currentColor" stroke-width="1.2" opacity=".5"/></svg>
+      <span class="nav-label">Partners</span>
+      <span class="nav-badge" id="nb-partners2">—</span>
+    </div>
+  </div>
+
+  <div class="sb-divider"></div>
+
+  <div class="sb-section">
+    <div class="sb-section-label">Health</div>
+    <div class="health-row" id="health-indicators">
+      <div class="health-item"><span class="health-label">Flow active</span><div class="health-dot ok"></div></div>
+      <div class="health-item"><span class="health-label">Variant A live</span><div class="health-dot warn" id="h-vara"></div></div>
+      <div class="health-item"><span class="health-label">Lead join working</span><div class="health-dot na" id="h-leads"></div></div>
+      <div class="health-item"><span class="health-label">Data freshness</span><div class="health-dot ok"></div></div>
+    </div>
+  </div>
+
+  <div class="sb-bottom">
+    <div class="sb-updated" id="sb-updated">—</div>
+    <div class="sb-live"><div class="sb-live-dot"></div><div class="sb-live-text">Live from BQ</div></div>
+  </div>
 </div>
 
-<div class="page active" id="tab-funnel">
-  <div id="notice-leads" class="notice" style="display:none">
-    <div class="notice-icon">⚠</div>
-    <div><strong>Lead data not yet joined:</strong> All partners show 0 leads. Expected for new SO partners — the referral code join with IPT Customer Leads V2 will populate once partners start sharing leads.</div>
-  </div>
-  <div class="kpi-row">
-    <div class="kpi"><div class="kpi-label">Flow Starts</div><div class="kpi-value" id="k-starts">—</div><div class="kpi-sub" id="k-starts-sub">—</div></div>
-    <div class="kpi"><div class="kpi-label">Calc Engagement</div><div class="kpi-value" id="k-calc">—</div><div class="kpi-sub" id="k-calc-sub">—</div></div>
-    <div class="kpi"><div class="kpi-label">Referral Link Copied</div><div class="kpi-value" id="k-reflink">—</div><div class="kpi-sub" id="k-reflink-sub">—</div></div>
-    <div class="kpi"><div class="kpi-label">CT Lead Event</div><div class="kpi-value" id="k-lead">—</div><div class="kpi-sub">first_lead_shared fired</div></div>
-    <div class="kpi"><div class="kpi-label">Activated</div><div class="kpi-value" id="k-activated">—</div><div class="kpi-sub">converted in CRM</div></div>
-  </div>
-  <div class="grid-2">
-    <div class="card"><div class="card-title">Screen-by-Screen Funnel</div><div class="card-sub">Unique partners who reached each screen</div><div class="funnel" id="funnel-bars"></div></div>
-    <div class="card"><div class="card-title">Daily Flow Starts</div><div class="card-sub">New unique partners entering the flow each day</div><canvas id="chart-daily"></canvas></div>
-  </div>
-  <div class="grid-2">
-    <div class="card"><div class="card-title">Screen Skip Analysis</div><div class="card-sub">Which screens partners skipped</div><table class="skip-table" id="skip-table"></table></div>
-    <div class="card"><div class="card-title">Screen Depth Distribution</div><div class="card-sub">Unique screens viewed per partner (max 7)</div><canvas id="chart-depth"></canvas></div>
-  </div>
-  <div class="grid-3">
-    <div class="card"><div class="card-title">Calculator Engagement</div><div class="card-sub">Partners who submitted a value</div><div class="pill-row" id="calc-pills"></div><canvas id="chart-calc-lic"></canvas></div>
-    <div class="card"><div class="card-title">Referral Action</div><div class="card-sub">Link vs code copies</div><canvas id="chart-reflink"></canvas></div>
-    <div class="card"><div class="card-title">Platform</div><div class="card-sub">Browser used to open flow</div><canvas id="chart-platform"></canvas></div>
-  </div>
-</div>
+<!-- MAIN CONTENT -->
+<div id="main">
 
-<div class="page" id="tab-ab">
-  <div class="notice">
-    <div class="notice-icon">ℹ</div>
-    <div><strong>Early stage — 23 partners across variants.</strong> Primary metric (lead shared / activated) not yet meaningful. Intermediate metrics give directional signal only.</div>
+  <!-- ══════════════ PAGE: OVERVIEW ══════════════ -->
+  <div class="page active" id="page-overview">
+
+    <div class="page-header">
+      <div class="page-title">Overview</div>
+      <div class="page-sub" id="overview-sub">Self-Onboarding Flow · Last 7 days</div>
+    </div>
+
+    <!-- Insight banner — dynamic -->
+    <div id="overview-banner" class="insight-banner">
+      <div class="insight-icon">⚡</div>
+      <div class="insight-body">
+        <div class="insight-title" id="banner-title">Loading…</div>
+        <div class="insight-text" id="banner-text"></div>
+      </div>
+    </div>
+
+    <!-- Segment hero -->
+    <div class="section-label">Partner segments</div>
+    <div class="segment-row">
+      <div class="segment-card bounce">
+        <div class="seg-label bounce">Bouncers</div>
+        <div class="seg-number bounce" id="seg-bounce">—</div>
+        <div class="seg-desc">partners · <span id="seg-bounce-pct">—</span> of total</div>
+        <div class="seg-def">Viewed ≤1 screen. Not engaged.</div>
+      </div>
+      <div class="segment-card partial">
+        <div class="seg-label partial">Partial</div>
+        <div class="seg-number partial" id="seg-partial">—</div>
+        <div class="seg-desc">partners · <span id="seg-partial-pct">—</span> of total</div>
+        <div class="seg-def">2–5 screens. Exploring but unconvinced.</div>
+      </div>
+      <div class="segment-card deep">
+        <div class="seg-label deep">Deep Engagers</div>
+        <div class="seg-number deep" id="seg-deep">—</div>
+        <div class="seg-desc">partners · <span id="seg-deep-pct">—</span> of total</div>
+        <div class="seg-def">6–7 screens. Understood the program.</div>
+      </div>
+    </div>
+
+    <!-- Metrics row -->
+    <div class="metrics-grid">
+      <div class="metric-cell">
+        <div class="mc-label">Total Starts</div>
+        <div class="mc-value" id="m-starts">—</div>
+        <div class="mc-sub" id="m-starts-sub">—</div>
+      </div>
+      <div class="metric-cell">
+        <div class="mc-label">Calc Engaged</div>
+        <div class="mc-value amber" id="m-calc">—</div>
+        <div class="mc-sub" id="m-calc-sub">—</div>
+      </div>
+      <div class="metric-cell">
+        <div class="mc-label">Link Copied</div>
+        <div class="mc-value" id="m-link">—</div>
+        <div class="mc-sub" id="m-link-sub">—</div>
+      </div>
+      <div class="metric-cell">
+        <div class="mc-label">Lead Shared</div>
+        <div class="mc-value" id="m-lead">—</div>
+        <div class="mc-sub">CT first_lead event</div>
+      </div>
+    </div>
+
+    <!-- Daily chart + deep engagement -->
+    <div class="section-label">Daily volume</div>
+    <div class="grid-6-4">
+      <div class="card">
+        <div class="card-title">Flow starts per day</div>
+        <div class="card-sub" id="daily-trend-sub">—</div>
+        <canvas id="chart-daily"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Engagement breakdown</div>
+        <div class="card-sub">Daily: bounced vs deep engagement</div>
+        <canvas id="chart-engage"></canvas>
+      </div>
+    </div>
+
+    <!-- Welcome drop callout -->
+    <div id="welcome-drop-banner" class="insight-banner amber">
+      <div class="insight-icon">⚠</div>
+      <div class="insight-body">
+        <div class="insight-title" id="wdb-title">—</div>
+        <div class="insight-text" id="wdb-text">—</div>
+      </div>
+    </div>
+
   </div>
-  <div class="ab-grid">
-    <div class="ab-card">
-      <div class="ab-header"><div class="ab-title">E2 — First Visit Experience</div><span class="badge early">Early Data</span></div>
-      <div class="ab-desc">Tests guided onboarding flow structure. Primary: first lead shared. Intermediate proxies shown below. Variant A not yet live.</div>
-      <div class="variants" id="e2-variants"></div>
-      <canvas id="chart-e2" style="max-height:160px;margin-bottom:12px"></canvas>
-      <div class="ab-note warn">⚠ Variant A not firing yet. Need ~200 partners per variant before primary metric is meaningful.</div>
+
+  <!-- ══════════════ PAGE: FUNNEL ══════════════ -->
+  <div class="page" id="page-funnel">
+    <div class="page-header">
+      <div class="page-title">Funnel Deep Dive</div>
+      <div class="page-sub">Screen-by-screen drop-off · time on screen · skip behaviour</div>
     </div>
-    <div class="ab-card">
-      <div class="ab-header"><div class="ab-title">Calc Variant — Gold vs Platinum</div><span class="badge running">Running</span></div>
-      <div class="ab-desc">Gold = exact earnings. Platinum = "Up to X". Primary proxy: avg licences selected (partner ambition signal).</div>
-      <div class="variants" id="calc-variants"></div>
-      <canvas id="chart-calc-ab" style="max-height:140px;margin-bottom:12px"></canvas>
-      <div class="ab-note info" id="calc-note"></div>
+
+    <div class="grid-4-6">
+      <div class="card">
+        <div class="card-title">Drop-off funnel</div>
+        <div class="card-sub">% of <span id="funnel-n">—</span> unique partners reaching each step</div>
+        <div class="funnel-wrap" id="funnel-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Time on screen</div>
+        <div class="card-sub" id="tos-sub">Avg seconds spent · skippers excluded · time_on_screen columns required</div>
+        <table class="tos-table" id="tos-table"></table>
+      </div>
+    </div>
+
+    <div class="section-label">Partner journey map</div>
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-title">Individual partner journeys</div>
+      <div class="card-sub">Each row = one partner. Green = viewed, dim = not viewed. Sorted by screen depth.</div>
+      <div class="heatmap-wrap" id="heatmap-wrap"></div>
+      <div class="hm-legend" id="hm-legend"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Screen skip counts</div>
+        <div class="card-sub">Number of partners who skipped each screen</div>
+        <canvas id="chart-skips"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Screen depth distribution</div>
+        <div class="card-sub">How many unique screens each partner viewed</div>
+        <canvas id="chart-depth"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ PAGE: EXPERIMENTS ══════════════ -->
+  <div class="page" id="page-experiments">
+    <div class="page-header">
+      <div class="page-title">Experiments</div>
+      <div class="page-sub">A/B tests tracking · intermediate signals only (n too small for primary metric)</div>
+    </div>
+
+    <div class="section-label">E2 — First Visit Experience</div>
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-header">
+        <div>
+          <div class="card-title">E2 · B vs C vs A</div>
+          <div class="card-sub">Primary: first lead shared rate (not yet measurable). Proxy metrics below are valid signals at current n.</div>
+        </div>
+        <span class="card-tag warn">Early — n=23</span>
+      </div>
+      <div class="variant-compare" id="e2-compare"></div>
+      <div class="grid-2" style="margin-bottom:0">
+        <div>
+          <div class="section-label" style="margin-top:8px">Bounce rate by variant</div>
+          <canvas id="chart-e2-bounce" style="max-height:180px"></canvas>
+        </div>
+        <div>
+          <div class="section-label" style="margin-top:8px">Screen depth distribution</div>
+          <canvas id="chart-e2-depth" style="max-height:180px"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Calc Variant — Gold vs Platinum</div>
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Calculator framing test</div>
+          <div class="card-sub">Gold = exact earnings. Platinum = "Up to X". Does aspirational framing change licence targets?</div>
+        </div>
+        <span class="card-tag warn">Running</span>
+      </div>
+      <div class="variant-compare" id="calc-compare" style="grid-template-columns:1fr 1fr;"></div>
+      <div class="grid-2" style="margin-bottom:0">
+        <div>
+          <div class="section-label" style="margin-top:8px">Avg licences selected</div>
+          <canvas id="chart-calc-lic" style="max-height:180px"></canvas>
+        </div>
+        <div>
+          <div class="section-label" style="margin-top:8px">Avg projected monthly earn (₹K)</div>
+          <canvas id="chart-calc-earn" style="max-height:180px"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Pending experiments</div>
+    <div class="grid-2">
+      <div class="exp-pending">
+        <div class="exp-pending-icon">🚧</div>
+        <div class="exp-pending-title">E1 — Hunting Gate</div>
+        <div class="exp-pending-text">Gates hunting agent assignment on first lead shared. Not yet launched — will show activation rate + time-to-lead per arm.</div>
+      </div>
+      <div class="exp-pending">
+        <div class="exp-pending-icon">🚧</div>
+        <div class="exp-pending-title">E3 — SO Threshold</div>
+        <div class="exp-pending-text">KYC vs profile-complete vs first-lead-shared as SO definition. Not yet launched — will compare 30-day lead share rates.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ PAGE: PARTNERS ══════════════ -->
+  <div class="page" id="page-partners">
+    <div class="page-header">
+      <div class="page-title">Partner Table</div>
+      <div class="page-sub">One row per partner. Journey dots show which screens they reached.</div>
+    </div>
+
+    <div class="card">
+      <div style="overflow-x:auto">
+        <table class="partner-table" id="partner-table">
+          <thead>
+            <tr>
+              <th class="pt-th">Code</th>
+              <th class="pt-th">Variant</th>
+              <th class="pt-th">Journey (W→Cu→Ca→Pr→Fe→Sh→FL)</th>
+              <th class="pt-th">Depth</th>
+              <th class="pt-th">Platform</th>
+              <th class="pt-th">Actions</th>
+              <th class="pt-th">Started</th>
+            </tr>
+          </thead>
+          <tbody id="partner-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
-  <div class="ab-grid">
-    <div class="ab-card pending">
-      <div class="ab-header"><div class="ab-title">E1 — Hunting Gate</div><span class="badge pending">Not Launched</span></div>
-      <div class="ab-desc">Gates hunting agent assignment on first lead shared.</div>
-      <div class="pending-body"><div class="pending-icon">🚧</div><div class="pending-text">No events yet. Will show activation rate and time-to-first-lead per arm once launched.</div></div>
-    </div>
-    <div class="ab-card pending">
-      <div class="ab-header"><div class="ab-title">E3 — SO Threshold</div><span class="badge pending">Not Launched</span></div>
-      <div class="ab-desc">KYC vs profile-complete vs first-lead-shared as SO definition.</div>
-      <div class="pending-body"><div class="pending-icon">🚧</div><div class="pending-text">No events yet. Will compare qualified SO rates across all three threshold definitions.</div></div>
-    </div>
-  </div>
-</div>
+
+</div><!-- /main -->
 
 <script>
-// Published-to-web CSV — no proxy needed
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPcXIIBWbuw5wWhPs7AWZpoG2St4z65_yLFd-Uhm1QLl9j33w7CEbuOYYj9SEMmxY5lFMhX64R2wwq/pub?output=csv';
 
-const R='#E8261A',RD='#f9cac7',G='#1a7a52',A='#c47c0a',BL='#1d4ed8';
-Chart.defaults.font.family = "'Syne', sans-serif";
-Chart.defaults.color = '#9c8880';
+// ─── Helpers ────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const b  = v  => v===true||String(v).toLowerCase()==='true';
+const n  = v  => parseFloat(v)||0;
+const pct= (a,d,dec=0) => d ? (a/d*100).toFixed(dec)+'%' : '—';
+const fK = v  => v>=1000?'₹'+(v/1000).toFixed(0)+'K':v>0?'₹'+v:'—';
+const clamp=(val,lo,hi)=>Math.min(hi,Math.max(lo,val));
 
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.color = '#666260';
+const CHART_GRID = {color:'rgba(255,255,255,0.04)',drawBorder:false};
+const CHART_TICK = {color:'#484442',padding:6};
+const RED='#E8261A', GREEN='#22c55e', AMBER='#f59e0b', BLUE='#60a5fa';
+
+// ─── Navigation ─────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    const pg = item.dataset.page;
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    item.classList.add('active');
+    $('page-'+pg).classList.add('active');
   });
 });
 
-const bool = v => v===true||v==='true'||v==='True'||v==='TRUE';
-const num  = v => parseFloat(v)||0;
-const pct  = (n,d) => d ? (n/d*100).toFixed(1)+'%' : '—';
-const fmtK = n => n>=1000 ? '₹'+(n/1000).toFixed(0)+'K' : n>0 ? '₹'+n : '—';
-
-async function init() {
-  let data;
-  try {
-    const res = await fetch(SHEET_URL);
-    const csv = await res.text();
-    await new Promise(resolve => {
-      Papa.parse(csv, { header:true, skipEmptyLines:true, complete: r => { data = r.data; resolve(); }});
+// ─── Load ───────────────────────────────────────────────────
+async function load(){
+  const fill=$('ld-fill'), status=$('ld-status');
+  fill.style.width='20%'; status.textContent='Fetching sheet…';
+  let raw;
+  try{
+    const res=await fetch(SHEET_URL);
+    const csv=await res.text();
+    fill.style.width='60%'; status.textContent='Parsing data…';
+    raw=await new Promise(resolve=>{
+      Papa.parse(csv,{header:true,skipEmptyLines:true,complete:r=>resolve(r.data)});
     });
-  } catch(e) {
-    document.querySelector('.loader-sub').textContent = 'Failed to load. Check sheet is public.';
+  }catch(e){
+    status.textContent='⚠ Failed to load. Is the sheet published?';
     return;
   }
-  data = data.filter(r => r.referral_code && r.referral_code !== 'DEMO123');
-  document.getElementById('last-updated').textContent = 'Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('loader').classList.add('hidden');
+  fill.style.width='90%'; status.textContent='Building dashboard…';
+  const data=raw.filter(r=>r.referral_code&&r.referral_code!=='DEMO123');
+  await new Promise(r=>setTimeout(r,200));
+  fill.style.width='100%';
+  await new Promise(r=>setTimeout(r,300));
+  $('loader').classList.add('out');
+
+  const ts=new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  $('sb-updated').textContent='Updated '+ts;
+  $('nb-partners').textContent=data.length;
+  $('nb-partners2').textContent=data.length;
+
+  buildOverview(data);
   buildFunnel(data);
-  buildAB(data);
+  buildExperiments(data);
+  buildPartners(data);
 }
 
-function buildFunnel(data) {
-  const n = data.length;
-  const calcInt   = data.filter(r=>bool(r.calc_interacted)).length;
-  const refCopied = data.filter(r=>bool(r.referral_link_copied)).length;
-  const ctLead    = data.filter(r=>bool(r.ct_first_lead_event_fired)).length;
-  const activated = data.filter(r=>bool(r.activated)).length;
+// ─── Overview ───────────────────────────────────────────────
+function buildOverview(data){
+  const N=data.length;
 
-  if (data.every(r=>num(r.total_leads)===0)) document.getElementById('notice-leads').style.display='flex';
+  // Segments
+  const bounce=data.filter(r=>n(r.screen_depth)<=1);
+  const partial=data.filter(r=>n(r.screen_depth)>=2&&n(r.screen_depth)<=5);
+  const deep=data.filter(r=>n(r.screen_depth)>=6);
 
-  document.getElementById('k-starts').textContent     = n;
-  document.getElementById('k-starts-sub').textContent = `${[...new Set(data.map(r=>r.flow_start_date).filter(Boolean))].length} days`;
-  document.getElementById('k-calc').textContent       = pct(calcInt,n);
-  document.getElementById('k-calc-sub').textContent   = `${calcInt} of ${n} partners`;
-  document.getElementById('k-reflink').textContent    = pct(refCopied,n);
-  document.getElementById('k-reflink-sub').textContent= `${refCopied} of ${n} partners`;
-  document.getElementById('k-lead').textContent       = ctLead>0 ? pct(ctLead,n) : '0%';
-  document.getElementById('k-activated').textContent  = activated>0 ? pct(activated,n) : '0%';
+  $('seg-bounce').textContent=bounce.length;
+  $('seg-bounce-pct').textContent=pct(bounce.length,N);
+  $('seg-partial').textContent=partial.length;
+  $('seg-partial-pct').textContent=pct(partial.length,N);
+  $('seg-deep').textContent=deep.length;
+  $('seg-deep-pct').textContent=pct(deep.length,N);
 
-  // Funnel
-  const steps = [
-    {label:'Flow Start',    cnt:n},
-    {label:'Welcome',       cnt:data.filter(r=>bool(r.saw_welcome)).length},
-    {label:'Customers',     cnt:data.filter(r=>bool(r.saw_customers)).length},
-    {label:'Calculator',    cnt:data.filter(r=>bool(r.saw_calculator)).length},
-    {label:'Process',       cnt:data.filter(r=>bool(r.saw_process)).length},
-    {label:'Features',      cnt:data.filter(r=>bool(r.saw_features)).length},
-    {label:'Share Methods', cnt:data.filter(r=>bool(r.saw_share_methods)).length},
-    {label:'First Lead',    cnt:data.filter(r=>bool(r.saw_first_lead)).length},
-    {label:'CT Lead Event', cnt:ctLead},
+  // Metrics
+  const calcInt=data.filter(r=>b(r.calc_interacted)).length;
+  const linkCop=data.filter(r=>b(r.referral_link_copied)).length;
+  const leadFir=data.filter(r=>b(r.ct_first_lead_event_fired)).length;
+  $('m-starts').textContent=N;
+  $('m-starts-sub').textContent=`${[...new Set(data.map(r=>r.flow_start_date).filter(Boolean))].length} days tracked`;
+  $('m-calc').textContent=pct(calcInt,N);
+  $('m-calc-sub').textContent=`${calcInt} of ${N} partners`;
+  $('m-link').textContent=pct(linkCop,N);
+  $('m-link-sub').textContent=`${linkCop} copied · ${N-linkCop} didn't`;
+  $('m-lead').textContent=leadFir>0?pct(leadFir,N):'0%';
+
+  // Smart banner — most critical insight
+  const deepNoLink=deep.filter(r=>!b(r.referral_link_copied)).length;
+  if(deepNoLink>0){
+    $('banner-title').textContent=`${deepNoLink} deep engagers haven't copied their referral link`;
+    $('banner-text').textContent=`These partners viewed 6–7 screens — they understand the program. But they stalled before taking action. This is your highest-leverage activation pool. Nudge them directly.`;
+  }
+  $('overview-sub').textContent=`${N} partners · ${data[data.length-1]?.flow_start_date||'—'} to ${data[0]?.flow_start_date||'—'}`;
+
+  // Welcome drop banner
+  const welcomeDrop=data.filter(r=>b(r.saw_welcome)).length;
+  const customersReach=data.filter(r=>b(r.saw_customers)).length;
+  const dropN=welcomeDrop-customersReach;
+  const dropPct=(dropN/welcomeDrop*100).toFixed(0);
+  $('wdb-title').textContent=`${dropPct}% of partners who see the Welcome screen don't make it to screen 2`;
+  $('wdb-text').textContent=`${dropN} of ${welcomeDrop} partners drop between Welcome → Customers — the single largest loss in the flow. ${data.filter(r=>b(r.skipped_welcome)).length} skipped Welcome entirely. Once time-on-screen data is live, this will confirm whether it's a comprehension failure or a relevance problem.`;
+
+  // Date range sub
+  const dates={};
+  data.forEach(r=>{if(r.flow_start_date)dates[r.flow_start_date]=(dates[r.flow_start_date]||0)+1;});
+  const sortedD=Object.keys(dates).sort((a,b)=>new Date(a)-new Date(b));
+
+  // Daily bar + line chart
+  new Chart($('chart-daily'),{
+    type:'bar',
+    data:{
+      labels:sortedD.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-IN',{day:'numeric',month:'short'});}),
+      datasets:[{
+        label:'Starts',
+        data:sortedD.map(d=>dates[d]),
+        backgroundColor:sortedD.map((_,i)=>i===sortedD.length-1?RED:'rgba(232,38,26,0.35)'),
+        borderRadius:3,barThickness:28,
+      }]
+    },
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:CHART_GRID,ticks:{...CHART_TICK,precision:0}},x:{grid:{display:false},ticks:CHART_TICK}}}
+  });
+  $('daily-trend-sub').textContent=`${N} total · volume is accelerating`;
+
+  // Stacked bounce/deep per day
+  const dayBounce=sortedD.map(d=>data.filter(r=>r.flow_start_date===d&&n(r.screen_depth)<=1).length);
+  const dayDeep  =sortedD.map(d=>data.filter(r=>r.flow_start_date===d&&n(r.screen_depth)>=6).length);
+  const dayMid   =sortedD.map(d=>data.filter(r=>r.flow_start_date===d&&n(r.screen_depth)>=2&&n(r.screen_depth)<=5).length);
+  new Chart($('chart-engage'),{
+    type:'bar',
+    data:{
+      labels:sortedD.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-IN',{day:'numeric',month:'short'});}),
+      datasets:[
+        {label:'Bounced',   data:dayBounce,backgroundColor:RED,          borderRadius:0,stack:'s'},
+        {label:'Partial',   data:dayMid,   backgroundColor:AMBER,        borderRadius:0,stack:'s'},
+        {label:'Deep',      data:dayDeep,  backgroundColor:GREEN,        borderRadius:3,stack:'s'},
+      ]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:12,font:{size:10},color:'#666260'}}},scales:{y:{beginAtZero:true,grid:CHART_GRID,ticks:{...CHART_TICK,precision:0},stacked:true},x:{grid:{display:false},ticks:CHART_TICK,stacked:true}}}
+  });
+}
+
+// ─── Funnel ─────────────────────────────────────────────────
+function buildFunnel(data){
+  const N=data.length;
+  $('funnel-n').textContent=N;
+
+  const steps=[
+    {label:'Flow start',     cnt:N,  screen:null},
+    {label:'Welcome',        cnt:data.filter(r=>b(r.saw_welcome)).length,       screen:'welcome'},
+    {label:'Customers',      cnt:data.filter(r=>b(r.saw_customers)).length,     screen:'customers'},
+    {label:'Calculator',     cnt:data.filter(r=>b(r.saw_calculator)).length,    screen:'calculator'},
+    {label:'Process',        cnt:data.filter(r=>b(r.saw_process)).length,       screen:'process'},
+    {label:'Features',       cnt:data.filter(r=>b(r.saw_features)).length,      screen:'features'},
+    {label:'Share Methods',  cnt:data.filter(r=>b(r.saw_share_methods)).length, screen:'share_methods'},
+    {label:'First Lead',     cnt:data.filter(r=>b(r.saw_first_lead)).length,    screen:'first_lead'},
+    {label:'Calc Interacted',cnt:data.filter(r=>b(r.calc_interacted)).length,   screen:null},
+    {label:'Link Copied',    cnt:data.filter(r=>b(r.referral_link_copied)).length,screen:null},
+    {label:'CT Lead',        cnt:data.filter(r=>b(r.ct_first_lead_event_fired)).length,screen:null},
   ];
-  const cls = i => i===0?'top':i<5?'mid':i<8?'bottom':'end';
-  const wrap = document.getElementById('funnel-bars');
-  steps.forEach((s,i) => {
-    const prev = i>0 ? steps[i-1].cnt : s.cnt;
-    const drop = prev - s.cnt;
-    const w = ((s.cnt/n)*100).toFixed(0);
-    wrap.innerHTML += `<div class="funnel-row">
-      <div class="f-label">${s.label}</div>
-      <div class="f-track"><div class="f-fill ${cls(i)}" style="width:${w}%"></div></div>
-      <div class="f-meta">
-        <span class="f-count">${s.cnt} <span style="font-size:10px;color:var(--ink-3)">(${w}%)</span></span>
-        ${drop>0?`<span class="f-drop">−${drop}</span>`:''}
+
+  const classes=['s0','s1','s1','s2','s3','s4','s5','s5','end','end','end'];
+  const wrap=$('funnel-bars');
+  steps.forEach((s,i)=>{
+    const prev=i>0?steps[i-1].cnt:N;
+    const drop=prev-s.cnt;
+    const dropPct=prev>0?(drop/prev*100).toFixed(0):0;
+    const w=(s.cnt/N*100).toFixed(1);
+    const isDiv=i===8; // divider before action metrics
+    if(isDiv) wrap.innerHTML+=`<div class="fn-divider"></div>`;
+    wrap.innerHTML+=`<div class="funnel-row">
+      <div class="fn-label">${s.label}</div>
+      <div class="fn-track"><div class="fn-fill ${classes[i]}" style="width:${w}%"></div></div>
+      <div class="fn-meta">
+        <span class="fn-pct">${s.cnt} <span style="color:var(--text-3);font-size:9px">(${w}%)</span></span>
+        ${drop>0?`<span class="fn-drop">−${drop} (${dropPct}%)</span>`:''}
       </div>
     </div>`;
   });
 
-  // Daily
-  const dm={};
-  data.forEach(r=>{const d=r.flow_start_date||'';if(d)dm[d]=(dm[d]||0)+1;});
-  const dates=Object.keys(dm).sort((a,b)=>new Date(a)-new Date(b));
-  new Chart(document.getElementById('chart-daily'),{
-    type:'bar',
-    data:{
-      labels:dates.map(d=>new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short'})),
-      datasets:[{label:'Starts',data:dates.map(d=>dm[d]),backgroundColor:R,borderRadius:4,barThickness:28}]
-    },
-    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'},ticks:{precision:0}},x:{grid:{display:false}}}}
-  });
-
-  // Skip table
-  const skipDefs=[
-    {name:'Welcome (0)',      col:'skipped_welcome',      note:'⚠ Highest — first impression issue'},
-    {name:'First Lead (6)',   col:'skipped_first_lead',   note:'Low dwell before skipping'},
-    {name:'Share Methods (5)',col:'skipped_share_methods', note:''},
-    {name:'Calculator (2)',   col:'skipped_calculator',    note:''},
-    {name:'Process (3)',      col:'skipped_process',       note:''},
-    {name:'Features (4)',     col:'skipped_features',      note:''},
-    {name:'Customers (1)',    col:'skipped_customers',     note:'✓ No skips recorded'},
+  // Skip dwell time table
+  // screen_viewed has no time_on_screen col — dwell time only exists in screen_skipped
+  // So this table shows: viewers, skippers, avg time BEFORE skipping (from avg_time_before_skip_sec)
+  const screenDefs=[
+    {name:'Welcome',      saw:'saw_welcome',       skip:'skipped_welcome'},
+    {name:'Customers',    saw:'saw_customers',     skip:'skipped_customers'},
+    {name:'Calculator',   saw:'saw_calculator',    skip:'skipped_calculator'},
+    {name:'Process',      saw:'saw_process',       skip:'skipped_process'},
+    {name:'Features',     saw:'saw_features',      skip:'skipped_features'},
+    {name:'Share Meth.',  saw:'saw_share_methods', skip:'skipped_share_methods'},
+    {name:'First Lead',   saw:'saw_first_lead',    skip:'skipped_first_lead'},
   ];
-  const maxSk = Math.max(...skipDefs.map(s=>data.filter(r=>bool(r[s.col])).length),1);
-  const tbl = document.getElementById('skip-table');
-  tbl.innerHTML='<thead><tr><th>Screen</th><th>Skips</th><th>Signal</th></tr></thead><tbody>';
-  skipDefs.forEach(s=>{
-    const cnt=data.filter(r=>bool(r[s.col])).length;
-    const w=Math.round((cnt/maxSk)*56);
+  $('tos-sub').textContent = 'Viewers vs skippers per screen · avg time before skip (screen_skipped only)';
+
+  // avg_time_before_skip_sec is per-partner across ALL skips, not per-screen
+  // so we show it as a global note, and per-screen show just counts
+  const globalAvgSkipTime = (() => {
+    const vals = data.filter(r=>r.avg_time_before_skip_sec&&r.avg_time_before_skip_sec!=='').map(r=>n(r.avg_time_before_skip_sec));
+    return vals.length ? Math.round(vals.reduce((a,v)=>a+v,0)/vals.length) : null;
+  })();
+
+  const tbl=$('tos-table');
+  tbl.innerHTML=`<thead><tr><th>Screen</th><th>Viewers</th><th>Skippers</th><th>Skip rate</th><th>Signal</th></tr></thead><tbody>`;
+
+  screenDefs.forEach(s=>{
+    const viewers = data.filter(r=>b(r[s.saw])).length;
+    const skippers = data.filter(r=>b(r[s.skip])).length;
+    const skipRate = viewers > 0 ? Math.round(skippers/viewers*100) : 0;
+    const barW = Math.round((skippers / Math.max(...screenDefs.map(x=>data.filter(r=>b(r[x.skip])).length),1)) * 72);
+
+    let signal = '';
+    if(s.name==='Welcome' && skippers > 5) signal = '<span style="color:var(--red)">⚠ High skip</span>';
+    else if(skippers === 0) signal = '<span style="color:var(--green)">✓ No skips</span>';
+    else if(skipRate > 20) signal = '<span style="color:var(--amber)">↑ Watch</span>';
+    else signal = '—';
+
     tbl.innerHTML+=`<tr>
-      <td class="mono">${s.name}</td>
-      <td><div class="skip-bar-wrap"><span class="skip-bar ${cnt===maxSk&&cnt>0?'hi':''}" style="width:${w}px"></span><span class="mono">${cnt}</span></div></td>
-      <td style="font-size:11px;color:var(--ink-3)">${s.note}</td>
+      <td style="color:var(--text);font-weight:600">${s.name}</td>
+      <td class="mono">${viewers}</td>
+      <td>
+        <div class="tos-bar-wrap">
+          <span class="tos-bar ${skippers>5?'':''}" style="width:${barW}px;background:${skippers>5?'var(--red)':'var(--text-3)'}"></span>
+          <span class="mono">${skippers}</span>
+        </div>
+      </td>
+      <td class="mono" style="${skipRate>30?'color:var(--red)':skipRate>15?'color:var(--amber)':''}">${skipRate}%</td>
+      <td>${signal}</td>
     </tr>`;
   });
-  tbl.innerHTML+='</tbody>';
+  tbl.innerHTML+=`</tbody>`;
+  if(globalAvgSkipTime) {
+    tbl.innerHTML+=`<tfoot><tr><td colspan="5" style="padding:8px 10px;font-size:10px;color:var(--text-3);border-top:1px solid var(--border)">Global avg time on screen before skipping: <span class="mono" style="color:var(--text)">${globalAvgSkipTime}s</span> · Per-screen dwell time unavailable (screen_viewed event has no time property)</td></tr></tfoot>`;
+  }
 
-  // Screen depth
-  const dm2={};
-  data.forEach(r=>{const d=String(num(r.screen_depth));dm2[d]=(dm2[d]||0)+1;});
-  const dkeys=Object.keys(dm2).sort((a,b)=>+a-+b);
-  new Chart(document.getElementById('chart-depth'),{
+  // Journey heatmap
+  const screens=['W','Cu','Ca','Pr','Fe','Sh','FL'];
+  const screenKeys=['saw_welcome','saw_customers','saw_calculator','saw_process','saw_features','saw_share_methods','saw_first_lead'];
+  const sorted=[...data].sort((a,z)=>n(z.screen_depth)-n(a.screen_depth));
+
+  let hmHTML=`<table class="heatmap">
+    <thead><tr>
+      <th class="hm-th" style="text-align:left;padding-left:8px">Partner</th>
+      <th class="hm-th">Var</th>
+      ${screens.map(s=>`<th class="hm-th screen">${s}</th>`).join('')}
+      <th class="hm-th">Calc</th>
+      <th class="hm-th">Link</th>
+      <th class="hm-th">Depth</th>
+    </tr></thead><tbody>`;
+
+  sorted.forEach(r=>{
+    const v=(r.e2_variant||'?').toLowerCase();
+    const code=r.referral_code||'—';
+    const dots=screenKeys.map((key,i)=>{
+      const saw=b(r[key]);
+      let cls,lbl;
+      if(!saw){cls='no';lbl='—';}
+      else{cls='yes';lbl='✓';}
+      return `<td class="hm-cell"><div class="hm-dot ${cls}" title="${screens[i]}: ${saw?'viewed':'not seen'}">${lbl}</div></td>`;
+    }).join('');
+
+    hmHTML+=`<tr class="hm-row">
+      <td style="padding:0 8px"><span style="font-family:var(--mono);font-size:10px;color:var(--text-2)">${code}</span></td>
+      <td style="padding:0 6px"><div class="hm-variant ${v}">${v.toUpperCase()}</div></td>
+      ${dots}
+      <td class="hm-cell"><div class="hm-dot ${b(r.calc_interacted)?'yes':'no'}">${b(r.calc_interacted)?'✓':'—'}</div></td>
+      <td class="hm-cell"><div class="hm-dot ${b(r.referral_link_copied)?'read':'no'}">${b(r.referral_link_copied)?'✓':'—'}</div></td>
+      <td style="padding:0 8px"><span style="font-family:var(--mono);font-size:12px;color:var(--text)">${n(r.screen_depth)}</span></td>
+    </tr>`;
+  });
+  hmHTML+='</tbody></table>';
+  $('heatmap-wrap').innerHTML=hmHTML;
+
+  $('hm-legend').innerHTML=`
+    <div class="hm-leg-item"><div class="hm-leg-dot" style="background:var(--red);opacity:0.5"></div>Viewed</div>
+    <div class="hm-leg-item"><div class="hm-leg-dot" style="background:var(--green);opacity:0.5"></div>Action taken</div>
+    <div class="hm-leg-item"><div class="hm-leg-dot" style="background:var(--s3)"></div>Not viewed</div>
+  `;
+
+  // Skip chart
+  const skipLabels=['Welcome','Customers','Calculator','Process','Features','Share Meth.','First Lead'];
+  const skipCols=['skipped_welcome','skipped_customers','skipped_calculator','skipped_process','skipped_features','skipped_share_methods','skipped_first_lead'];
+  const skipCounts=skipCols.map(c=>data.filter(r=>b(r[c])).length);
+  new Chart($('chart-skips'),{
     type:'bar',
     data:{
-      labels:dkeys.map(d=>d+(d==='7'?' ✓':'')),
-      datasets:[{label:'Partners',data:dkeys.map(d=>dm2[d]),backgroundColor:dkeys.map(d=>d==='7'?G:d==='0'?'#e8e0d8':R),borderRadius:4,barThickness:22}]
+      labels:skipLabels,
+      datasets:[{label:'Skips',data:skipCounts,backgroundColor:skipCounts.map(v=>v===Math.max(...skipCounts)?RED:'rgba(232,38,26,0.3)'),borderRadius:3,barThickness:22}]
     },
-    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'},ticks:{precision:0}},x:{grid:{display:false},title:{display:true,text:'Screens viewed'}}}}
+    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:CHART_GRID,ticks:{...CHART_TICK,precision:0}},y:{grid:{display:false},ticks:CHART_TICK}}}
   });
 
-  // Calc pills
-  const cs=data.filter(r=>bool(r.calc_interacted)&&num(r.calc_final_licenses)>0);
-  const avgL=cs.length?(cs.reduce((s,r)=>s+num(r.calc_final_licenses),0)/cs.length).toFixed(1):'—';
-  const avgE=cs.length?Math.round(cs.reduce((s,r)=>s+num(r.calc_final_monthly_earnings),0)/cs.length):0;
-  document.getElementById('calc-pills').innerHTML=`
-    <div class="pill"><div class="pill-val">${calcInt}</div><div class="pill-key">Submitted</div></div>
-    <div class="pill"><div class="pill-val">${avgL}</div><div class="pill-key">Avg Licences</div></div>
-    <div class="pill"><div class="pill-val">${fmtK(avgE)}</div><div class="pill-key">Avg Monthly</div></div>`;
-
-  // Calc lic distribution
-  const lb={'1':0,'2':0,'3–5':0,'6–9':0,'10–19':0,'20+':0};
-  cs.forEach(r=>{const l=num(r.calc_final_licenses);if(l===1)lb['1']++;else if(l===2)lb['2']++;else if(l<=5)lb['3–5']++;else if(l<=9)lb['6–9']++;else if(l<=19)lb['10–19']++;else lb['20+']++;});
-  new Chart(document.getElementById('chart-calc-lic'),{
+  // Depth histogram
+  const dm={};
+  data.forEach(r=>{const d=String(n(r.screen_depth));dm[d]=(dm[d]||0)+1;});
+  const dk=Object.keys(dm).sort((a,z)=>+a-+z);
+  new Chart($('chart-depth'),{
     type:'bar',
-    data:{labels:Object.keys(lb),datasets:[{label:'Partners',data:Object.values(lb),backgroundColor:[RD,RD,R,R,R,R],borderRadius:3,barThickness:18}]},
-    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'},ticks:{precision:0}},x:{grid:{display:false}}}}
-  });
-
-  // Referral donut
-  const lk=data.filter(r=>bool(r.copied_link)).length;
-  const cd=data.filter(r=>bool(r.copied_code)).length;
-  new Chart(document.getElementById('chart-reflink'),{
-    type:'doughnut',
-    data:{labels:['Link','Code','Not Copied'],datasets:[{data:[lk,cd,n-refCopied],backgroundColor:[R,RD,'#f0ebe4'],borderWidth:0}]},
-    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}},cutout:'62%'}
-  });
-
-  // Platform donut
-  const pm={};
-  data.forEach(r=>{const p=r.platform||'Unknown';pm[p]=(pm[p]||0)+1;});
-  new Chart(document.getElementById('chart-platform'),{
-    type:'doughnut',
-    data:{labels:Object.keys(pm),datasets:[{data:Object.values(pm),backgroundColor:[R,RD,'#e8e0d8'],borderWidth:0}]},
-    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}},cutout:'62%'}
+    data:{
+      labels:dk.map(d=>d+(d==='7'?' ✓':'')),
+      datasets:[{label:'Partners',data:dk.map(d=>dm[d]),backgroundColor:dk.map(d=>d==='7'?GREEN:d==='0'||d==='1'?RED:'rgba(245,158,11,0.5)'),borderRadius:3,barThickness:26}]
+    },
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:CHART_GRID,ticks:{...CHART_TICK,precision:0}},x:{grid:{display:false},ticks:CHART_TICK,title:{display:true,text:'screens viewed',color:'#484442',font:{size:10}}}}}
   });
 }
 
-function buildAB(data) {
-  // E2 variants — a, b, c
-  const e2Wrap = document.getElementById('e2-variants');
-  ['b','c','a'].forEach(v => {
-    const sub = v==='a' ? [] : data.filter(r=>r.e2_variant===v);
-    const n=sub.length;
-    const calc = n?sub.filter(r=>bool(r.calc_interacted)).length:0;
-    const rl   = n?sub.filter(r=>bool(r.referral_link_copied)).length:0;
-    const lead = n?sub.filter(r=>bool(r.ct_first_lead_event_fired)).length:0;
-    const dep  = n?(sub.reduce((s,r)=>s+num(r.screen_depth),0)/n).toFixed(1):'—';
-    e2Wrap.innerHTML+=`<div class="variant">
-      <div class="v-label">Variant ${v.toUpperCase()}${v==='a'?' (not live)':''}</div>
-      <div class="v-row"><span class="v-key">Partners</span><span class="v-val hero">${n||0}</span></div>
-      <div class="v-row"><span class="v-key">Calc engaged</span><span class="v-val">${n?pct(calc,n):'—'}</span></div>
-      <div class="v-row"><span class="v-key">Ref link copied</span><span class="v-val">${n?pct(rl,n):'—'}</span></div>
-      <div class="v-row"><span class="v-key">CT lead fired</span><span class="v-val">${n?pct(lead,n):'—'}</span></div>
-      <div class="v-row"><span class="v-key">Avg depth</span><span class="v-val">${dep}</span></div>
+// ─── Experiments ────────────────────────────────────────────
+function buildExperiments(data){
+  const N=data.length;
+
+  // E2
+  const variantData={
+    b:data.filter(r=>r.e2_variant==='b'),
+    c:data.filter(r=>r.e2_variant==='c'),
+    a:[],
+  };
+  const vcWrap=$('e2-compare');
+  Object.entries(variantData).forEach(([v,sub])=>{
+    const n2=sub.length;
+    const bounce=n2?sub.filter(r=>n(r.screen_depth)<=1).length:0;
+    const deep=n2?sub.filter(r=>n(r.screen_depth)>=6).length:0;
+    const calc=n2?sub.filter(r=>b(r.calc_interacted)).length:0;
+    const rl=n2?sub.filter(r=>b(r.referral_link_copied)).length:0;
+    const lead=n2?sub.filter(r=>b(r.ct_first_lead_event_fired)).length:0;
+    const avgDepth=n2?(sub.reduce((s,r)=>s+n(r.screen_depth),0)/n2).toFixed(1):'—';
+
+    // Best on bounce rate = variant c right now
+    const bouncePct=n2?Math.round(bounce/n2*100):null;
+    const deepPct=n2?Math.round(deep/n2*100):null;
+
+    const inactive=v==='a';
+    vcWrap.innerHTML+=`<div class="vc-panel ${inactive?'inactive':''}">
+      <div class="vc-label ${v}">${v==='a'?'VARIANT A (not live)':'VARIANT '+v.toUpperCase()}</div>
+      <div class="vc-metric"><span class="vc-key">Partners</span><span class="vc-val hero">${n2||0}</span></div>
+      <div class="vc-metric"><span class="vc-key">Bounce rate</span><span class="vc-val ${bouncePct!==null&&bouncePct<40?'good':'bad'}">${bouncePct!==null?bouncePct+'%':'—'}</span></div>
+      <div class="vc-metric"><span class="vc-key">Deep (6–7 screens)</span><span class="vc-val ${deepPct!==null&&deepPct>40?'good':''}">${deepPct!==null?deepPct+'%':'—'}</span></div>
+      <div class="vc-metric"><span class="vc-key">Calc engaged</span><span class="vc-val">${n2?pct(calc,n2):'—'}</span></div>
+      <div class="vc-metric"><span class="vc-key">Link copied</span><span class="vc-val ${rl>0?'good':''}">${n2?pct(rl,n2):'—'}</span></div>
+      <div class="vc-metric"><span class="vc-key">Avg depth</span><span class="vc-val">${avgDepth}</span></div>
+      ${!inactive?`<div class="vc-note">Primary (lead shared): not yet measurable. Bounce rate + depth are valid proxy metrics at this n.</div>`:'<div class="vc-note">Not launched. Will appear automatically when events start firing.</div>'}
     </div>`;
   });
 
-  const e2B=data.filter(r=>r.e2_variant==='b');
-  const e2C=data.filter(r=>r.e2_variant==='c');
-  const calcP=sub=>sub.length?(sub.filter(r=>bool(r.calc_interacted)).length/sub.length*100).toFixed(1):0;
-  const rlP  =sub=>sub.length?(sub.filter(r=>bool(r.referral_link_copied)).length/sub.length*100).toFixed(1):0;
-  const depA =sub=>sub.length?(sub.reduce((s,r)=>s+num(r.screen_depth),0)/sub.length*10).toFixed(0):0;
-
-  new Chart(document.getElementById('chart-e2'),{
+  // E2 bounce rate chart
+  const e2Labels=['Variant B','Variant C','Variant A'];
+  const e2Bounce=[
+    variantData.b.length?Math.round(variantData.b.filter(r=>n(r.screen_depth)<=1).length/variantData.b.length*100):0,
+    variantData.c.length?Math.round(variantData.c.filter(r=>n(r.screen_depth)<=1).length/variantData.c.length*100):0,
+    0
+  ];
+  new Chart($('chart-e2-bounce'),{
     type:'bar',
-    data:{
-      labels:['Calc Engaged %','Ref Link Copied %','Screen Depth ×10'],
-      datasets:[
-        {label:'B',data:[calcP(e2B),rlP(e2B),depA(e2B)],backgroundColor:R,borderRadius:4,barThickness:22},
-        {label:'C',data:[calcP(e2C),rlP(e2C),depA(e2C)],backgroundColor:RD,borderRadius:4,barThickness:22},
-      ]
-    },
-    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'}},x:{grid:{display:false}}}}
+    data:{labels:e2Labels,datasets:[{label:'Bounce Rate %',data:e2Bounce,backgroundColor:[RED,'rgba(96,165,250,0.6)','rgba(255,255,255,0.1)'],borderRadius:4,barThickness:40}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100,grid:CHART_GRID,ticks:{...CHART_TICK,callback:v=>v+'%'}},x:{grid:{display:false},ticks:CHART_TICK}}}
   });
 
-  // Calc variants
-  const calcWrap=document.getElementById('calc-variants');
-  const avgLicOf=sub=>{const s=sub.filter(r=>bool(r.calc_interacted)&&num(r.calc_final_licenses)>0);return s.length?(s.reduce((a,r)=>a+num(r.calc_final_licenses),0)/s.length).toFixed(1):'—';};
-  const avgEarnOf=sub=>{const s=sub.filter(r=>bool(r.calc_interacted)&&num(r.calc_final_monthly_earnings)>0);return s.length?Math.round(s.reduce((a,r)=>a+num(r.calc_final_monthly_earnings),0)/s.length):0;};
-  const cgold=data.filter(r=>r.calc_variant==='gold');
-  const cplat=data.filter(r=>r.calc_variant==='platinum');
+  // E2 depth distribution
+  const depthBuckets=[0,1,2,3,4,5,6,7];
+  new Chart($('chart-e2-depth'),{
+    type:'bar',
+    data:{
+      labels:depthBuckets,
+      datasets:[
+        {label:'B',data:depthBuckets.map(d=>variantData.b.filter(r=>n(r.screen_depth)===d).length),backgroundColor:RED,borderRadius:2,barThickness:14},
+        {label:'C',data:depthBuckets.map(d=>variantData.c.filter(r=>n(r.screen_depth)===d).length),backgroundColor:BLUE,borderRadius:2,barThickness:14},
+      ]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:10,font:{size:10},color:'#666260'}}},scales:{y:{beginAtZero:true,grid:CHART_GRID,ticks:{...CHART_TICK,precision:0}},x:{grid:{display:false},ticks:{...CHART_TICK},title:{display:true,text:'screen depth',color:'#484442',font:{size:10}}}}}
+  });
 
-  [['gold',cgold],['platinum',cplat]].forEach(([v,sub])=>{
-    const n=sub.length;
-    const int2=sub.filter(r=>bool(r.calc_interacted)).length;
-    const rl=sub.filter(r=>bool(r.referral_link_copied)).length;
-    calcWrap.innerHTML+=`<div class="variant">
-      <div class="v-label">${v.charAt(0).toUpperCase()+v.slice(1)}</div>
-      <div class="v-row"><span class="v-key">Partners</span><span class="v-val hero">${n}</span></div>
-      <div class="v-row"><span class="v-key">Calc interacted</span><span class="v-val">${pct(int2,n)}</span></div>
-      <div class="v-row"><span class="v-key">Avg licences</span><span class="v-val">${avgLicOf(sub)}</span></div>
-      <div class="v-row"><span class="v-key">Avg monthly earn</span><span class="v-val">${fmtK(avgEarnOf(sub))}</span></div>
-      <div class="v-row"><span class="v-key">Ref link copied</span><span class="v-val">${pct(rl,n)}</span></div>
+  // Calc variant
+  const calcData={gold:data.filter(r=>r.calc_variant==='gold'),platinum:data.filter(r=>r.calc_variant==='platinum')};
+  const cvWrap=$('calc-compare');
+  const avgLicOf=sub=>{
+    const s=sub.filter(r=>b(r.calc_interacted)&&n(r.calc_final_licenses)>0);
+    return s.length?(s.reduce((a,r)=>a+n(r.calc_final_licenses),0)/s.length).toFixed(1):null;
+  };
+  const avgEarnOf=sub=>{
+    const s=sub.filter(r=>b(r.calc_interacted)&&n(r.calc_final_monthly_earnings)>0);
+    return s.length?Math.round(s.reduce((a,r)=>a+n(r.calc_final_monthly_earnings),0)/s.length):null;
+  };
+
+  Object.entries(calcData).forEach(([v,sub])=>{
+    const n2=sub.length;
+    const int2=sub.filter(r=>b(r.calc_interacted)).length;
+    const avgL=avgLicOf(sub);
+    const avgE=avgEarnOf(sub);
+    const rl=sub.filter(r=>b(r.referral_link_copied)).length;
+    const bounce=n2?Math.round(sub.filter(r=>n(r.screen_depth)<=1).length/n2*100):0;
+    cvWrap.innerHTML+=`<div class="vc-panel">
+      <div class="vc-label ${v==='gold'?'b':'c'}">${v.toUpperCase()}</div>
+      <div class="vc-metric"><span class="vc-key">Partners</span><span class="vc-val hero">${n2}</span></div>
+      <div class="vc-metric"><span class="vc-key">Calc interacted</span><span class="vc-val">${pct(int2,n2)}</span></div>
+      <div class="vc-metric"><span class="vc-key">Avg licences</span><span class="vc-val ${v==='platinum'?'good':''}">${avgL||'—'}</span></div>
+      <div class="vc-metric"><span class="vc-key">Avg monthly earn</span><span class="vc-val">${avgE?fK(avgE):'—'}</span></div>
+      <div class="vc-metric"><span class="vc-key">Link copied</span><span class="vc-val">${pct(rl,n2)}</span></div>
+      <div class="vc-metric"><span class="vc-key">Bounce rate</span><span class="vc-val">${bounce}%</span></div>
     </div>`;
   });
 
-  const goldL=parseFloat(avgLicOf(cgold))||0;
-  const platL=parseFloat(avgLicOf(cplat))||0;
-  const diff=platL>0&&goldL>0?((platL-goldL)/goldL*100).toFixed(0):null;
-  document.getElementById('calc-note').className='ab-note info';
-  document.getElementById('calc-note').innerHTML = diff
-    ? `ℹ Platinum shows ${platL} avg licences vs Gold's ${goldL} — ${diff}% higher. Early signal that aspirational framing raises ambition. Confirm at n≥50 per arm.`
-    : `ℹ Not enough calculator interactions yet to compare variants.`;
+  const goldL=parseFloat(avgLicOf(calcData.gold))||0;
+  const platL=parseFloat(avgLicOf(calcData.platinum))||0;
+  const goldE=avgEarnOf(calcData.gold)||0;
+  const platE=avgEarnOf(calcData.platinum)||0;
 
-  new Chart(document.getElementById('chart-calc-ab'),{
+  new Chart($('chart-calc-lic'),{
     type:'bar',
-    data:{
-      labels:['Avg Licences','Avg Monthly Earn (₹K)'],
-      datasets:[
-        {label:'Gold',    data:[goldL, Math.round(avgEarnOf(cgold)/1000)],backgroundColor:'#f59e0b',borderRadius:4,barThickness:28},
-        {label:'Platinum',data:[platL, Math.round(avgEarnOf(cplat)/1000)],backgroundColor:'#6366f1',borderRadius:4,barThickness:28},
-      ]
-    },
-    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'#f0ebe4'}},x:{grid:{display:false}}}}
+    data:{labels:['Gold','Platinum'],datasets:[{label:'Avg licences',data:[goldL,platL],backgroundColor:[AMBER,'rgba(96,165,250,0.7)'],borderRadius:4,barThickness:52}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:CHART_GRID,ticks:CHART_TICK},x:{grid:{display:false},ticks:CHART_TICK}}}
+  });
+  new Chart($('chart-calc-earn'),{
+    type:'bar',
+    data:{labels:['Gold','Platinum'],datasets:[{label:'Avg ₹K',data:[Math.round(goldE/1000),Math.round(platE/1000)],backgroundColor:[AMBER,'rgba(96,165,250,0.7)'],borderRadius:4,barThickness:52}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:CHART_GRID,ticks:{...CHART_TICK,callback:v=>'₹'+v+'K'}},x:{grid:{display:false},ticks:CHART_TICK}}}
   });
 }
 
-init();
+// ─── Partners table ─────────────────────────────────────────
+function buildPartners(data){
+  const sorted=[...data].sort((a,z)=>n(z.screen_depth)-n(a.screen_depth));
+  const screenKeys=['saw_welcome','saw_customers','saw_calculator','saw_process','saw_features','saw_share_methods','saw_first_lead'];
+  const tbody=$('partner-tbody');
+  sorted.forEach(r=>{
+    const v=(r.e2_variant||'').toLowerCase();
+    const dots=screenKeys.map(k=>`<div class="jd ${b(r[k])?'yes':'no'}" title="${k.replace('saw_','')}"></div>`).join('');
+    const badges=[
+      b(r.calc_interacted)?`<span class="pt-badge calc">Calc</span>`:'',
+      b(r.referral_link_copied)?`<span class="pt-badge link">Link</span>`:'',
+      b(r.ct_first_lead_event_fired)?`<span class="pt-badge lead">Lead</span>`:'',
+    ].filter(Boolean).join('');
+    const date=r.flow_start_date||'—';
+    const depth=n(r.screen_depth);
+
+    tbody.innerHTML+=`<tr class="pt-tr">
+      <td class="pt-td"><span class="pt-code">${r.referral_code||'—'}</span></td>
+      <td class="pt-td">${v?`<span class="pt-variant ${v}">${v.toUpperCase()}</span>`:'—'}</td>
+      <td class="pt-td"><div class="journey-dots">${dots}</div></td>
+      <td class="pt-td"><span class="pt-depth" style="${depth>=6?'color:var(--green)':depth<=1?'color:var(--red)':''}">${depth}/7</span></td>
+      <td class="pt-td" style="color:var(--text-3)">${r.platform||'—'}</td>
+      <td class="pt-td"><div class="pt-badges">${badges||'<span style="color:var(--text-3);font-size:10px">none</span>'}</div></td>
+      <td class="pt-td" style="font-size:10px;color:var(--text-3)">${date}</td>
+    </tr>`;
+  });
+}
+
+load();
 </script>
 </body>
 </html>
