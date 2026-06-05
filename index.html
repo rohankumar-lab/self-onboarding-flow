@@ -377,6 +377,15 @@ canvas{max-height:240px;}
       <div class="page-sub" id="overview-sub">Self-Onboarding Flow · Last 7 days</div>
     </div>
 
+    <!-- Lead join notice — hidden by default, shown when leads=0 -->
+    <div id="notice-leads" class="insight-banner amber" style="display:none">
+      <div class="insight-icon">⚠</div>
+      <div class="insight-body">
+        <div class="insight-title">Lead join not yet populated</div>
+        <div class="insight-text">No referral codes have matched in IPT Customer Leads V2 yet. Expected for brand-new partners. Will populate once partners start sharing leads.</div>
+      </div>
+    </div>
+
     <!-- Insight banner — dynamic -->
     <div id="overview-banner" class="insight-banner">
       <div class="insight-icon">⚡</div>
@@ -427,9 +436,14 @@ canvas{max-height:240px;}
         <div class="mc-sub" id="m-link-sub">—</div>
       </div>
       <div class="metric-cell">
-        <div class="mc-label">Lead Shared</div>
-        <div class="mc-value" id="m-lead">—</div>
-        <div class="mc-sub">CT first_lead event</div>
+        <div class="mc-label">Leads in CRM</div>
+        <div class="mc-value green" id="m-lead">—</div>
+        <div class="mc-sub" id="m-lead-sub">CT first_lead event</div>
+      </div>
+      <div class="metric-cell">
+        <div class="mc-label">Activated</div>
+        <div class="mc-value" id="m-activated">—</div>
+        <div class="mc-sub" id="m-activated-sub">converted in CRM</div>
       </div>
     </div>
 
@@ -680,17 +694,41 @@ function buildOverview(data){
   const calcInt=data.filter(r=>b(r.calc_interacted)).length;
   const linkCop=data.filter(r=>b(r.referral_link_copied)).length;
   const leadFir=data.filter(r=>b(r.ct_first_lead_event_fired)).length;
+  const totalLeadsCRM=data.reduce((s,r)=>s+n(r.total_leads),0);
+  const activatedCount=data.filter(r=>b(r.activated)).length;
+
   $('m-starts').textContent=N;
   $('m-starts-sub').textContent=`${[...new Set(data.map(r=>r.flow_start_date).filter(Boolean))].length} days tracked`;
   $('m-calc').textContent=pct(calcInt,N);
   $('m-calc-sub').textContent=`${calcInt} of ${N} partners`;
   $('m-link').textContent=pct(linkCop,N);
   $('m-link-sub').textContent=`${linkCop} copied · ${N-linkCop} didn't`;
-  $('m-lead').textContent=leadFir>0?pct(leadFir,N):'0%';
+  // Lead KPI: show CRM leads if join is working, else CT event count
+  $('m-lead').textContent=totalLeadsCRM>0?totalLeadsCRM:(leadFir>0?leadFir:'0');
+  $('m-lead-sub').textContent=totalLeadsCRM>0?`${totalLeadsCRM} leads in CRM`:`${leadFir} CT events fired`;
+  // Activated KPI
+  $('m-activated').textContent=activatedCount>0?activatedCount:'0';
+  $('m-activated-sub').textContent=activatedCount>0?`${activatedCount} of ${N} partners`:'no conversions yet';
 
-  // Smart banner — most critical insight
-  const deepNoLink=deep.filter(r=>!b(r.referral_link_copied)).length;
-  if(deepNoLink>0){
+  // Health indicators — driven by actual data
+  const anyLeads=totalLeadsCRM>0;
+  const variantALive=data.some(r=>r.e2_variant==='a');
+  $('h-leads').className='health-dot '+(anyLeads?'ok':'warn');
+  $('h-vara').className='health-dot '+(variantALive?'ok':'warn');
+  if(!anyLeads) $('notice-leads').style.display='flex';
+
+  // Smart banner — pick most critical insight based on data state
+  const deepNoLink = deep.filter(r=>!b(r.referral_link_copied)).length;
+  const totalLeads = data.reduce((s,r)=>s+n(r.total_leads),0);
+  const leadsConverted = data.reduce((s,r)=>s+n(r.leads_converted),0);
+  const partnersWithLeads = data.filter(r=>n(r.total_leads)>0).length;
+  if(totalLeads > 0 && leadsConverted === 0){
+    $('banner-title').textContent=`${totalLeads} leads shared, 0 converted yet`;
+    $('banner-text').textContent=`${partnersWithLeads} partners have shared leads — join is working. No conversions yet but it's early (leads assigned same day). Watch login rate over next 48h.`;
+  } else if(leadsConverted > 0){
+    $('banner-title').textContent=`${leadsConverted} lead${leadsConverted>1?'s':''} converted — first activations`;
+    $('banner-text').textContent=`${partnersWithLeads} partners sharing leads, ${leadsConverted} converted. Activation rate: ${(leadsConverted/N*100).toFixed(1)}%.`;
+  } else if(deepNoLink > 0){
     $('banner-title').textContent=`${deepNoLink} deep engagers haven't copied their referral link`;
     $('banner-text').textContent=`These partners viewed 6–7 screens — they understand the program. But they stalled before taking action. This is your highest-leverage activation pool. Nudge them directly.`;
   }
