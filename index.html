@@ -747,8 +747,11 @@ function buildOverview(data){
   const calcInt=data.filter(r=>b(r.calc_interacted)).length;
   const linkCop=data.filter(r=>b(r.referral_link_copied)).length;
   const leadFir=data.filter(r=>b(r.ct_first_lead_event_fired)).length;
-  const totalLeadsCRM=data.reduce((s,r)=>s+n(r.total_leads),0);
-  const activatedCount=data.filter(r=>b(r.activated)).length;
+  // SO attribution safeguard: only count leads/activations for partners
+  // who fired the CT first_lead_shared event (= genuinely SO-attributed)
+  const soPartners = data.filter(r=>b(r.ct_first_lead_event_fired));
+  const totalLeadsCRM = soPartners.reduce((s,r)=>s+n(r.total_leads),0);
+  const activatedCount = soPartners.filter(r=>b(r.activated)).length;
 
   $('m-starts').textContent=N;
   $('m-starts-sub').textContent=`${[...new Set(data.map(r=>r.flow_start_date).filter(Boolean))].length} days tracked`;
@@ -764,7 +767,7 @@ function buildOverview(data){
   $('m-activated-sub').textContent=activatedCount>0?`${activatedCount} of ${N} partners`:'no conversions yet';
 
   // Health indicators — driven by actual data
-  const anyLeads=totalLeadsCRM>0;
+  const anyLeads=totalLeadsCRM>0 || soPartners.length>0;
   const variantALive=data.some(r=>r.e2_variant==='a');
   $('h-leads').className='health-dot '+(anyLeads?'ok':'warn');
   $('h-vara').className='health-dot '+(variantALive?'ok':'warn');
@@ -772,9 +775,9 @@ function buildOverview(data){
 
   // Smart banner — pick most critical insight based on data state
   const deepNoLink = deep.filter(r=>!b(r.referral_link_copied)).length;
-  const totalLeads = data.reduce((s,r)=>s+n(r.total_leads),0);
-  const leadsConverted = data.reduce((s,r)=>s+n(r.leads_converted),0);
-  const partnersWithLeads = data.filter(r=>n(r.total_leads)>0).length;
+  const totalLeads = soPartners.reduce((s,r)=>s+n(r.total_leads),0);
+  const leadsConverted = soPartners.reduce((s,r)=>s+n(r.leads_converted),0);
+  const partnersWithLeads = soPartners.filter(r=>n(r.total_leads)>0).length;
   if(totalLeads > 0 && leadsConverted === 0){
     $('banner-title').textContent=`${totalLeads} leads shared, 0 converted yet`;
     $('banner-text').textContent=`${partnersWithLeads} partners have shared leads — join is working. No conversions yet but it's early (leads assigned same day). Watch login rate over next 48h.`;
@@ -872,96 +875,92 @@ function buildFunnel(data){
     </div>`;
   });
 
-  // Skip dwell time table
-  // screen_viewed has no time_on_screen col — dwell time only exists in screen_skipped
-  // So this table shows: viewers, skippers, avg time BEFORE skipping (from avg_time_before_skip_sec)
+  // Screen time table — per-screen skip time from skip_time_* columns
+  // These are avg seconds spent on that screen before the partner chose to skip it
+  // NULL = partner never skipped that screen (either read it fully or didn't reach it)
   const screenDefs=[
-    {name:'Welcome',      saw:'saw_welcome',       skip:'skipped_welcome'},
-    {name:'Customers',    saw:'saw_customers',     skip:'skipped_customers'},
-    {name:'Calculator',   saw:'saw_calculator',    skip:'skipped_calculator'},
-    {name:'Process',      saw:'saw_process',       skip:'skipped_process'},
-    {name:'Features',     saw:'saw_features',      skip:'skipped_features'},
-    {name:'Share Meth.',  saw:'saw_share_methods', skip:'skipped_share_methods'},
-    {name:'First Lead',   saw:'saw_first_lead',    skip:'skipped_first_lead'},
+    {name:'Welcome',      saw:'saw_welcome',       skip:'skipped_welcome',       time:'skip_time_welcome'},
+    {name:'Customers',    saw:'saw_customers',     skip:'skipped_customers',     time:'skip_time_customers'},
+    {name:'Calculator',   saw:'saw_calculator',    skip:'skipped_calculator',    time:'skip_time_calculator'},
+    {name:'Process',      saw:'saw_process',       skip:'skipped_process',       time:'skip_time_process'},
+    {name:'Features',     saw:'saw_features',      skip:'skipped_features',      time:'skip_time_features'},
+    {name:'Share Meth.',  saw:'saw_share_methods', skip:'skipped_share_methods', time:'skip_time_share_methods'},
+    {name:'First Lead',   saw:'saw_first_lead',    skip:'skipped_first_lead',    time:'skip_time_first_lead'},
   ];
-  $('tos-sub').textContent = 'Viewers vs skippers per screen · avg time before skip (screen_skipped only)';
+  $('tos-sub').textContent = 'Viewers · skippers · avg seconds on screen before skipping';
 
-  // avg_time_before_skip_sec is per-partner across ALL skips, not per-screen
-  // so we show it as a global note, and per-screen show just counts
-  const globalAvgSkipTime = (() => {
-    const vals = data.filter(r=>r.avg_time_before_skip_sec&&r.avg_time_before_skip_sec!=='').map(r=>n(r.avg_time_before_skip_sec));
+  // Compute per-screen avg skip time across all partners who skipped that screen
+  const perScreenAvg = screenDefs.map(s => {
+    const vals = data
+      .filter(r => b(r[s.skip]) && r[s.time] !== '' && r[s.time] !== null && r[s.time] !== undefined && !isNaN(parseFloat(r[s.time])))
+      .map(r => parseFloat(r[s.time]));
     return vals.length ? Math.round(vals.reduce((a,v)=>a+v,0)/vals.length) : null;
-  })();
+  });
+
+  const maxTime = Math.max(...perScreenAvg.filter(v=>v!==null), 1);
+  const maxSkip = Math.max(...screenDefs.map(s=>data.filter(r=>b(r[s.skip])).length), 1);
 
   const tbl=$('tos-table');
-  tbl.innerHTML=`<thead><tr><th>Screen</th><th>Viewers</th><th>Skippers</th><th>Skip rate</th><th>Signal</th></tr></thead><tbody>`;
+  tbl.innerHTML=`<thead><tr>
+    <th>Screen</th>
+    <th>Viewers</th>
+    <th>Skippers</th>
+    <th>Skip Rate</th>
+    <th>Avg Time Before Skip</th>
+    <th>Read Signal</th>
+  </tr></thead><tbody>`;
 
-  screenDefs.forEach(s=>{
-    const viewers = data.filter(r=>b(r[s.saw])).length;
+  screenDefs.forEach((s, i) => {
+    const viewers  = data.filter(r=>b(r[s.saw])).length;
     const skippers = data.filter(r=>b(r[s.skip])).length;
     const skipRate = viewers > 0 ? Math.round(skippers/viewers*100) : 0;
-    const barW = Math.round((skippers / Math.max(...screenDefs.map(x=>data.filter(r=>b(r[x.skip])).length),1)) * 72);
+    const avgT     = perScreenAvg[i];
+    const barW     = avgT ? Math.round((avgT/maxTime)*72) : 0;
+    const skipBarW = Math.round((skippers/maxSkip)*40);
 
-    let signal = '';
-    if(s.name==='Welcome' && skippers > 5) signal = '<span style="color:var(--red)">⚠ High skip</span>';
-    else if(skippers === 0) signal = '<span style="color:var(--green)">✓ No skips</span>';
-    else if(skipRate > 20) signal = '<span style="color:var(--amber)">↑ Watch</span>';
-    else signal = '—';
+    // Signal: if avg time before skip is high, they read it and still left (content problem)
+    //         if low, they bounced without reading (relevance/hook problem)
+    let signal = '—';
+    if(avgT !== null) {
+      if(avgT < 5)       signal = `<span style="color:var(--red)">Instant skip</span>`;
+      else if(avgT < 15) signal = `<span style="color:var(--amber)">Bounced</span>`;
+      else if(avgT < 60) signal = `<span style="color:var(--amber)">Glanced</span>`;
+      else               signal = `<span style="color:var(--text-2)">Read, then left</span>`;
+    } else if(skippers === 0) {
+      signal = `<span style="color:var(--green)">No skips</span>`;
+    }
 
     tbl.innerHTML+=`<tr>
-      <td style="color:var(--text);font-weight:600">${s.name}</td>
+      <td style="color:var(--text);font-weight:600;font-size:12px">${s.name}</td>
       <td class="mono">${viewers}</td>
       <td>
         <div class="tos-bar-wrap">
-          <span class="tos-bar ${skippers>5?'':''}" style="width:${barW}px;background:${skippers>5?'var(--red)':'var(--text-3)'}"></span>
+          <span class="tos-bar" style="width:${skipBarW}px;background:${skippers>5?'var(--red)':skippers>2?'var(--amber)':'var(--text-3)'}"></span>
           <span class="mono">${skippers}</span>
         </div>
       </td>
-      <td class="mono" style="${skipRate>30?'color:var(--red)':skipRate>15?'color:var(--amber)':''}">${skipRate}%</td>
-      <td>${signal}</td>
+      <td class="mono" style="${skipRate>40?'color:var(--red)':skipRate>20?'color:var(--amber)':''}">${skipRate}%</td>
+      <td>
+        <div class="tos-bar-wrap">
+          ${avgT!==null
+            ? `<span class="tos-bar" style="width:${barW}px;background:var(--blue)"></span><span class="mono">${avgT}s</span>`
+            : `<span style="color:var(--text-3);font-size:10px">${skippers===0?'—':'no data'}</span>`
+          }
+        </div>
+      </td>
+      <td style="font-size:11px">${signal}</td>
     </tr>`;
   });
-  tbl.innerHTML+=`</tbody>`;
-  if(globalAvgSkipTime) {
-    tbl.innerHTML+=`<tfoot><tr><td colspan="5" style="padding:8px 10px;font-size:10px;color:var(--text-3);border-top:1px solid var(--border)">Global avg time on screen before skipping: <span class="mono" style="color:var(--text)">${globalAvgSkipTime}s</span> · Per-screen dwell time unavailable (screen_viewed event has no time property)</td></tr></tfoot>`;
+  tbl.innerHTML+='</tbody>';
+
+  // Footer note
+  const hasAnyTime = perScreenAvg.some(v=>v!==null);
+  if(hasAnyTime){
+    tbl.innerHTML+=`<tfoot><tr><td colspan="6" style="padding:8px 10px;font-size:10px;color:var(--text-3);border-top:1px solid var(--border)">
+      Time = avg seconds spent on that screen before the partner chose to skip it. Only available for skipped screens.
+    </td></tr></tfoot>`;
   }
 
-  // Journey heatmap
-  const screens=['W','Cu','Ca','Pr','Fe','Sh','FL'];
-  const screenKeys=['saw_welcome','saw_customers','saw_calculator','saw_process','saw_features','saw_share_methods','saw_first_lead'];
-  const sorted=[...data].sort((a,z)=>n(z.screen_depth)-n(a.screen_depth));
-
-  let hmHTML=`<table class="heatmap">
-    <thead><tr>
-      <th class="hm-th" style="text-align:left;padding-left:8px">Partner</th>
-      <th class="hm-th">Var</th>
-      ${screens.map(s=>`<th class="hm-th screen">${s}</th>`).join('')}
-      <th class="hm-th">Calc</th>
-      <th class="hm-th">Link</th>
-      <th class="hm-th">Depth</th>
-    </tr></thead><tbody>`;
-
-  sorted.forEach(r=>{
-    const v=(r.e2_variant||'?').toLowerCase();
-    const code=r.referral_code||'—';
-    const dots=screenKeys.map((key,i)=>{
-      const saw=b(r[key]);
-      let cls,lbl;
-      if(!saw){cls='no';lbl='—';}
-      else{cls='yes';lbl='✓';}
-      return `<td class="hm-cell"><div class="hm-dot ${cls}" title="${screens[i]}: ${saw?'viewed':'not seen'}">${lbl}</div></td>`;
-    }).join('');
-
-    hmHTML+=`<tr class="hm-row">
-      <td style="padding:0 8px"><span style="font-family:var(--mono);font-size:10px;color:var(--text-2)">${code}</span></td>
-      <td style="padding:0 6px"><div class="hm-variant ${v}">${v.toUpperCase()}</div></td>
-      ${dots}
-      <td class="hm-cell"><div class="hm-dot ${b(r.calc_interacted)?'yes':'no'}">${b(r.calc_interacted)?'✓':'—'}</div></td>
-      <td class="hm-cell"><div class="hm-dot ${b(r.referral_link_copied)?'read':'no'}">${b(r.referral_link_copied)?'✓':'—'}</div></td>
-      <td style="padding:0 8px"><span style="font-family:var(--mono);font-size:12px;color:var(--text)">${n(r.screen_depth)}</span></td>
-    </tr>`;
-  });
-  hmHTML+='</tbody></table>';
   $('heatmap-wrap').innerHTML=hmHTML;
 
   $('hm-legend').innerHTML=`
