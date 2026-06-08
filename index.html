@@ -9,43 +9,69 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* ── DARK MODE (default) ── */
 :root {
-  --bg:       #0c0c0c;
-  --s1:       #141414;
-  --s2:       #1c1c1c;
-  --s3:       #242424;
-  --border:   #2c2c2c;
-  --border-2: #383838;
+  --bg:       #0e0e0e;
+  --s1:       #161616;
+  --s2:       #202020;
+  --s3:       #2a2a2a;
+  --border:   #303030;
+  --border-2: #404040;
   --text:     #f0ece6;
-  --text-2:   #888480;
-  --text-3:   #484442;
+  --text-2:   #b0aaa4;
+  --text-3:   #706a64;
   --red:      #E8261A;
-  --red-bg:   rgba(232,38,26,0.12);
-  --red-dim:  rgba(232,38,26,0.06);
+  --red-bg:   rgba(232,38,26,0.15);
+  --red-dim:  rgba(232,38,26,0.08);
   --green:    #22c55e;
-  --green-bg: rgba(34,197,94,0.1);
+  --green-bg: rgba(34,197,94,0.12);
   --amber:    #f59e0b;
-  --amber-bg: rgba(245,158,11,0.1);
+  --amber-bg: rgba(245,158,11,0.12);
   --blue:     #60a5fa;
-  --blue-bg:  rgba(96,165,250,0.1);
+  --blue-bg:  rgba(96,165,250,0.12);
+  --sans:     'Instrument Sans', sans-serif;
+  --mono:     'IBM Plex Mono', monospace;
+  --sidebar:  240px;
+}
+
+/* ── LIGHT MODE ── */
+:root.light {
+  --bg:       #f5f3f0;
+  --s1:       #ffffff;
+  --s2:       #f0ede8;
+  --s3:       #e8e4de;
+  --border:   #ddd8d0;
+  --border-2: #ccc8c0;
+  --text:     #1a1614;
+  --text-2:   #5a5450;
+  --text-3:   #9a9490;
+  --red:      #C41E12;
+  --red-bg:   rgba(196,30,18,0.08);
+  --red-dim:  rgba(196,30,18,0.04);
+  --green:    #16a34a;
+  --green-bg: rgba(22,163,74,0.1);
+  --amber:    #d97706;
+  --amber-bg: rgba(217,119,6,0.1);
+  --blue:     #2563eb;
+  --blue-bg:  rgba(37,99,235,0.1);
   --sans:     'Instrument Sans', sans-serif;
   --mono:     'IBM Plex Mono', monospace;
   --sidebar:  240px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
-body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex;transition:background 0.2s,color 0.2s;}
 
 /* ─── LOADER ─────────────────────────────────────────────── */
 #loader{
-  position:fixed;inset:0;background:var(--bg);
+  position:fixed;inset:0;background:var(--bg);color:var(--text);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:20px;z-index:1000;transition:opacity 0.5s ease;
 }
 #loader.out{opacity:0;pointer-events:none;}
 .ld-logo{display:flex;align-items:center;gap:10px;}
 .ld-dot{width:10px;height:10px;background:var(--red);border-radius:50%;}
-.ld-title{font-family:var(--mono);font-size:14px;color:var(--text);letter-spacing:0.1em;}
+.ld-title{font-family:var(--mono);font-size:14px;color:var(--text);letter-spacing:0.1em;transition:color 0.2s;}
 .ld-bar{width:200px;height:2px;background:var(--s3);border-radius:2px;overflow:hidden;}
 .ld-fill{height:100%;background:var(--red);border-radius:2px;width:0;transition:width 0.6s ease;}
 .ld-status{font-family:var(--mono);font-size:11px;color:var(--text-3);letter-spacing:0.06em;}
@@ -57,6 +83,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
   border-right:1px solid var(--border);
   display:flex;flex-direction:column;
   overflow:hidden;flex-shrink:0;
+  transition:background 0.2s;
 }
 .sb-top{padding:20px 18px 16px;border-bottom:1px solid var(--border);}
 .sb-logo{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
@@ -98,6 +125,18 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 .sb-live{display:flex;align-items:center;gap:5px;margin-top:4px;}
 .sb-live-dot{width:5px;height:5px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;}
 .sb-live-text{font-family:var(--mono);font-size:9px;color:var(--green);letter-spacing:0.06em;}
+.sb-actions{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;}
+.sb-btn{
+  display:flex;align-items:center;gap:7px;width:100%;
+  background:var(--s2);border:1px solid var(--border);border-radius:5px;
+  padding:7px 10px;cursor:pointer;color:var(--text-2);
+  font-family:var(--sans);font-size:11px;font-weight:500;
+  transition:all 0.15s;
+}
+.sb-btn:hover{background:var(--s3);color:var(--text);border-color:var(--border-2);}
+.sb-btn svg{width:13px;height:13px;flex-shrink:0;}
+.sb-btn.spinning svg{animation:spin 0.8s linear infinite;}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 
 /* ─── MAIN AREA ──────────────────────────────────────────── */
@@ -150,7 +189,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 .seg-number.bounce{color:var(--red);}
 .seg-number.partial{color:var(--amber);}
 .seg-number.deep{color:var(--green);}
-.seg-desc{font-size:11px;color:var(--text-3);line-height:1.5;}
+.seg-desc{font-size:11px;color:var(--text-2);line-height:1.5;}
 .seg-def{font-size:10px;color:var(--text-3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
 
 /* ─── GRID LAYOUTS ───────────────────────────────────────── */
@@ -163,7 +202,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 .card{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:18px 20px;}
 .card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;}
 .card-title{font-size:13px;font-weight:700;color:var(--text);}
-.card-sub{font-size:11px;color:var(--text-3);margin-bottom:16px;line-height:1.5;}
+.card-sub{font-size:11px;color:var(--text-2);margin-bottom:16px;line-height:1.5;}
 .card-tag{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:3px 7px;border-radius:3px;}
 .card-tag.warn{background:var(--amber-bg);color:var(--amber);}
 .card-tag.ok{background:var(--green-bg);color:var(--green);}
@@ -240,24 +279,24 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 .vc-label.c{color:var(--blue);}
 .vc-label.a{color:var(--text-3);}
 .vc-metric{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
-.vc-key{font-size:11px;color:var(--text-3);}
+.vc-key{font-size:11px;color:var(--text-2);}
 .vc-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text);}
 .vc-val.hero{font-size:22px;color:var(--text);}
 .vc-val.good{color:var(--green);}
 .vc-val.bad{color:var(--red);}
 .vc-val.na{color:var(--text-3);font-size:11px;}
 .vc-winner{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:0.08em;padding:2px 6px;border-radius:3px;background:var(--green-bg);color:var(--green);margin-left:6px;}
-.vc-note{font-size:10px;color:var(--text-3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);line-height:1.5;}
+.vc-note{font-size:10px;color:var(--text-2);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);line-height:1.5;}
 
 /* ─── METRICS GRID ───────────────────────────────────────── */
 .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
 .metric-cell{background:var(--s2);border-radius:6px;padding:12px 14px;}
-.mc-label{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;}
+.mc-label{font-size:10px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;}
 .mc-value{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--text);}
 .mc-value.red{color:var(--red);}
 .mc-value.green{color:var(--green);}
 .mc-value.amber{color:var(--amber);}
-.mc-sub{font-size:10px;color:var(--text-3);margin-top:2px;}
+.mc-sub{font-size:10px;color:var(--text-2);margin-top:2px;}
 
 /* ─── PENDING EXPERIMENT ─────────────────────────────────── */
 .exp-pending{
@@ -266,7 +305,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 }
 .exp-pending-icon{font-size:24px;opacity:0.2;margin-bottom:8px;}
 .exp-pending-title{font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px;}
-.exp-pending-text{font-size:11px;color:var(--text-3);line-height:1.6;max-width:240px;margin:0 auto;}
+.exp-pending-text{font-size:11px;color:var(--text-2);line-height:1.6;max-width:240px;margin:0 auto;}
 
 /* ─── PARTNER TABLE ──────────────────────────────────────── */
 .partner-table{width:100%;border-collapse:collapse;}
@@ -361,6 +400,17 @@ canvas{max-height:240px;}
   </div>
 
   <div class="sb-bottom">
+    <div class="sb-actions">
+      <button class="sb-btn" id="btn-refresh" onclick="refreshData()" title="Refresh data">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c1.8 0 3.4.87 4.4 2.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M12 2v3h-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Refresh
+      </button>
+      <button class="sb-btn" id="btn-theme" onclick="toggleTheme()" title="Toggle light/dark">
+        <svg id="theme-icon-moon" viewBox="0 0 16 16" fill="none"><path d="M13.5 10.5A6 6 0 0 1 5.5 2.5a6 6 0 1 0 8 8z" fill="currentColor" opacity=".8"/></svg>
+        <svg id="theme-icon-sun" viewBox="0 0 16 16" fill="none" style="display:none"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span id="theme-label">Light</span>
+      </button>
+    </div>
     <div class="sb-updated" id="sb-updated">—</div>
     <div class="sb-live"><div class="sb-live-dot"></div><div class="sb-live-text">Live from BQ</div></div>
   </div>
@@ -624,9 +674,12 @@ const fK = v  => v>=1000?'₹'+(v/1000).toFixed(0)+'K':v>0?'₹'+v:'—';
 const clamp=(val,lo,hi)=>Math.min(hi,Math.max(lo,val));
 
 Chart.defaults.font.family = "'IBM Plex Mono', monospace";
-Chart.defaults.color = '#666260';
-const CHART_GRID = {color:'rgba(255,255,255,0.04)',drawBorder:false};
-const CHART_TICK = {color:'#484442',padding:6};
+Chart.defaults.color = '#888480';
+const getGrid = ()=>({color:document.documentElement.classList.contains('light')?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.05)',drawBorder:false});
+const getTick = ()=>({color:document.documentElement.classList.contains('light')?'#9a9490':'#585250',padding:6});
+// Use getGrid()/getTick() inline in each chart options
+const CHART_GRID = {color:'rgba(255,255,255,0.05)',drawBorder:false};
+const CHART_TICK = {color:'#585250',padding:6};
 const RED='#E8261A', GREEN='#22c55e', AMBER='#f59e0b', BLUE='#60a5fa';
 
 // ─── Navigation ─────────────────────────────────────────────
@@ -1082,6 +1135,47 @@ function buildPartners(data){
     </tr>`;
   });
 }
+
+// ─── Theme ──────────────────────────────────────────────────
+function toggleTheme(){
+  const root=document.documentElement;
+  const isLight=root.classList.toggle('light');
+  document.getElementById('theme-icon-moon').style.display=isLight?'none':'block';
+  document.getElementById('theme-icon-sun').style.display=isLight?'block':'none';
+  document.getElementById('theme-label').textContent=isLight?'Dark':'Light';
+  localStorage.setItem('so-theme',isLight?'light':'dark');
+  // Update chart colors
+  Chart.defaults.color = isLight ? '#706a64' : '#666260';
+}
+
+// ─── Refresh ─────────────────────────────────────────────────
+let _lastData=null;
+async function refreshData(){
+  const btn=document.getElementById('btn-refresh');
+  btn.classList.add('spinning');
+  document.getElementById('sb-updated').textContent='Refreshing…';
+  // Destroy existing charts
+  Chart.helpers.each(Chart.instances,(c)=>c.destroy());
+  // Clear rendered sections
+  ['funnel-bars','e2-compare','calc-compare','partner-tbody',
+   'skip-table','heatmap-wrap','hm-legend','calc-pills'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML='';
+  });
+  await load();
+  btn.classList.remove('spinning');
+}
+
+// ─── Restore theme on load ───────────────────────────────────
+(function(){
+  const saved=localStorage.getItem('so-theme');
+  if(saved==='light'){
+    document.documentElement.classList.add('light');
+    document.getElementById('theme-icon-moon').style.display='none';
+    document.getElementById('theme-icon-sun').style.display='block';
+    document.getElementById('theme-label').textContent='Dark';
+  }
+})();
 
 load();
 </script>
