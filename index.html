@@ -125,6 +125,19 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 .sb-live{display:flex;align-items:center;gap:5px;margin-top:4px;}
 .sb-live-dot{width:5px;height:5px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;}
 .sb-live-text{font-family:var(--mono);font-size:9px;color:var(--green);letter-spacing:0.06em;}
+.sb-filter{padding:14px 18px;border-bottom:1px solid var(--border);}
+.sb-filter-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;}
+.filter-pills{display:flex;gap:4px;}
+.filter-pill{
+  flex:1;text-align:center;padding:6px 4px;border-radius:5px;cursor:pointer;
+  font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.06em;
+  border:1px solid var(--border);color:var(--text-3);background:transparent;
+  transition:all 0.15s;user-select:none;
+}
+.filter-pill:hover{border-color:var(--border-2);color:var(--text-2);}
+.filter-pill.active{background:var(--red-bg);border-color:rgba(232,38,26,0.3);color:var(--red);}
+.filter-pill.active-ap{background:var(--blue-bg);border-color:rgba(96,165,250,0.3);color:var(--blue);}
+.filter-pill.active-tp{background:var(--green-bg);border-color:rgba(34,197,94,0.3);color:var(--green);}
 .sb-actions{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;}
 .sb-btn{
   display:flex;align-items:center;gap:7px;width:100%;
@@ -364,6 +377,15 @@ canvas{max-height:240px;}
     <div class="sb-subtitle">Self-Onboarding Flow</div>
   </div>
 
+  <div class="sb-filter">
+    <div class="sb-filter-label">Channel</div>
+    <div class="filter-pills">
+      <div class="filter-pill active" id="fp-all"   onclick="setFilter('all')">All</div>
+      <div class="filter-pill"        id="fp-ap"    onclick="setFilter('ap')">AP</div>
+      <div class="filter-pill"        id="fp-tp"    onclick="setFilter('tp')">TP</div>
+    </div>
+  </div>
+
   <div class="sb-section">
     <div class="sb-section-label">Views</div>
     <div class="nav-item active" data-page="overview">
@@ -384,6 +406,11 @@ canvas{max-height:240px;}
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="5" r="2.5" fill="currentColor" opacity=".7"/><circle cx="11" cy="5" r="2.5" fill="currentColor" opacity=".4"/><path d="M1 13c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" stroke-width="1.2"/><path d="M10 9c1.7.3 3 1.9 3 3.8" stroke="currentColor" stroke-width="1.2" opacity=".5"/></svg>
       <span class="nav-label">Partners</span>
       <span class="nav-badge" id="nb-partners2">—</span>
+    </div>
+    <div class="nav-item" data-page="leads">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="12" cy="11" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M14 13l1.5 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <span class="nav-label">Customer Leads</span>
+      <span class="nav-badge" id="nb-leads">—</span>
     </div>
   </div>
 
@@ -660,6 +687,85 @@ canvas{max-height:240px;}
     </div>
   </div>
 
+  <!-- ══════════════ PAGE: CUSTOMER LEADS ══════════════ -->
+  <div class="page" id="page-leads">
+    <div class="page-header">
+      <div class="page-title">Customer Leads</div>
+      <div class="page-sub">SO-attributed leads only · shared by partners who completed the CT first_lead_shared event</div>
+    </div>
+
+    <div id="leads-empty" class="insight-banner blue" style="display:none">
+      <div class="insight-icon">ℹ</div>
+      <div class="insight-body">
+        <div class="insight-title">No SO-attributed leads yet</div>
+        <div class="insight-text">Leads will appear here once partners who completed the flow share customer leads and the referral codes match in IPT Customer Leads V2.</div>
+      </div>
+    </div>
+
+    <!-- Lead funnel KPIs -->
+    <div class="metrics-grid" id="lead-kpi-row" style="grid-template-columns:repeat(5,1fr)">
+      <div class="metric-cell"><div class="mc-label">SO Partners</div><div class="mc-value" id="lk-partners">—</div><div class="mc-sub">fired CT lead event</div></div>
+      <div class="metric-cell"><div class="mc-label">Total Leads</div><div class="mc-value" id="lk-leads">—</div><div class="mc-sub" id="lk-leads-sub">—</div></div>
+      <div class="metric-cell"><div class="mc-label">Logged In</div><div class="mc-value amber" id="lk-login">—</div><div class="mc-sub" id="lk-login-sub">—</div></div>
+      <div class="metric-cell"><div class="mc-label">Demo Done</div><div class="mc-value" id="lk-demo">—</div><div class="mc-sub" id="lk-demo-sub">—</div></div>
+      <div class="metric-cell"><div class="mc-label">Converted</div><div class="mc-value green" id="lk-converted">—</div><div class="mc-sub" id="lk-converted-sub">—</div></div>
+    </div>
+
+    <!-- Lead funnel bar -->
+    <div class="section-label">Lead → Login → Demo → Conversion funnel</div>
+    <div class="grid-6-4" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-title">Customer funnel</div>
+        <div class="card-sub">Aggregate across all SO-attributed leads</div>
+        <div class="funnel-wrap" id="lead-funnel-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Time to first lead</div>
+        <div class="card-sub">Seconds from flow start to first lead shared (CT event)</div>
+        <canvas id="chart-time-to-lead"></canvas>
+        <div style="margin-top:12px" id="ttl-stats"></div>
+      </div>
+    </div>
+
+    <!-- Per-partner lead table -->
+    <div class="section-label">Per-partner breakdown</div>
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-title">SO partner lead performance</div>
+      <div class="card-sub">Only partners who fired the CT first_lead_shared event</div>
+      <div style="overflow-x:auto;margin-top:4px">
+        <table class="partner-table" id="lead-partner-table">
+          <thead><tr>
+            <th class="pt-th">Partner</th>
+            <th class="pt-th">Variant</th>
+            <th class="pt-th">Time to Lead</th>
+            <th class="pt-th">Total Leads</th>
+            <th class="pt-th">Login</th>
+            <th class="pt-th">Demo</th>
+            <th class="pt-th">Converted</th>
+            <th class="pt-th">CVR</th>
+            <th class="pt-th">Lead Source</th>
+            <th class="pt-th">Experiment Info</th>
+          </tr></thead>
+          <tbody id="lead-partner-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Lead source breakdown -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Lead source breakdown</div>
+        <div class="card-sub">How SO partners are generating their leads</div>
+        <canvas id="chart-lead-source"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Experiment arm (leads side)</div>
+        <div class="card-sub">PARTNER_IPT_PLAN assignment from IPT Customer Leads V2</div>
+        <canvas id="chart-lead-experiment"></canvas>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 
 <script>
@@ -690,6 +796,14 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     item.classList.add('active');
     $('page-'+pg).classList.add('active');
+    // Lazy-build pages that need charts in a visible canvas
+    const d = window._soData;
+    const built = window._pagesBuilt;
+    if(d && built){
+      if(pg==='experiments' && !built.experiments){ buildExperiments(d); built.experiments=true; }
+      if(pg==='partners'    && !built.partners)   { buildPartners(d);    built.partners=true;    }
+      if(pg==='leads'       && !built.leads)      { buildLeads(d);       built.leads=true;       }
+    }
   });
 });
 
@@ -721,10 +835,18 @@ async function load(){
   $('nb-partners').textContent=data.length;
   $('nb-partners2').textContent=data.length;
 
+  // Store data globally so pages can render on first visit
+  window._allData  = data;    // full unfiltered dataset
+  window._soData   = data;    // currently active (filtered) dataset
+  window._activeFilter = 'all';
+  window._pagesBuilt = {overview:false, funnel:false, experiments:false, partners:false, leads:false};
+
   buildOverview(data);
   buildFunnel(data);
-  buildExperiments(data);
-  buildPartners(data);
+  // Experiments, Partners, Leads render lazily on first nav to avoid
+  // Chart.js hidden-canvas bug (charts get 0 dimensions if page is display:none)
+  window._pagesBuilt.overview = true;
+  window._pagesBuilt.funnel   = true;
 }
 
 // ─── Overview ───────────────────────────────────────────────
@@ -788,7 +910,8 @@ function buildOverview(data){
     $('banner-title').textContent=`${deepNoLink} deep engagers haven't copied their referral link`;
     $('banner-text').textContent=`These partners viewed 6–7 screens — they understand the program. But they stalled before taking action. This is your highest-leverage activation pool. Nudge them directly.`;
   }
-  $('overview-sub').textContent=`${N} partners · ${data[data.length-1]?.flow_start_date||'—'} to ${data[0]?.flow_start_date||'—'}`;
+  const filterLabel = window._activeFilter==='ap'?' · AP channel':window._activeFilter==='tp'?' · TP channel':'';
+  $('overview-sub').textContent=`${N} partners${filterLabel} · ${data[data.length-1]?.flow_start_date||'—'} to ${data[0]?.flow_start_date||'—'}`;
 
   // Welcome drop banner
   const welcomeDrop=data.filter(r=>b(r.saw_welcome)).length;
@@ -1133,6 +1256,234 @@ function buildPartners(data){
       <td class="pt-td" style="font-size:10px;color:var(--text-3)">${date}</td>
     </tr>`;
   });
+}
+
+// ─── Customer Leads ─────────────────────────────────────────
+function buildLeads(data){
+  // Only SO-attributed partners: fired CT first_lead_shared event
+  const so = data.filter(r=>b(r.ct_first_lead_event_fired));
+  const N  = so.length;
+  $('nb-leads').textContent = so.reduce((s,r)=>s+n(r.total_leads),0);
+
+  if(N === 0){
+    $('leads-empty').style.display = 'flex';
+    return;
+  }
+
+  // ── KPIs ────────────────────────────────────────────────────
+  const totalLeads    = so.reduce((s,r)=>s+n(r.total_leads),0);
+  const totalLogin    = so.reduce((s,r)=>s+n(r.leads_with_login),0);
+  const totalDemo     = so.reduce((s,r)=>s+n(r.leads_with_demo),0);
+  const totalConverted= so.reduce((s,r)=>s+n(r.leads_converted),0);
+
+  $('lk-partners').textContent   = N;
+  $('lk-leads').textContent      = totalLeads;
+  $('lk-leads-sub').textContent  = `avg ${(totalLeads/N).toFixed(1)} per partner`;
+  $('lk-login').textContent      = totalLogin;
+  $('lk-login-sub').textContent  = totalLeads>0 ? pct(totalLogin,totalLeads)+' of leads' : '—';
+  $('lk-demo').textContent       = totalDemo;
+  $('lk-demo-sub').textContent   = totalLeads>0 ? pct(totalDemo,totalLeads)+' of leads' : '—';
+  $('lk-converted').textContent  = totalConverted;
+  $('lk-converted-sub').textContent = totalLeads>0 ? pct(totalConverted,totalLeads)+' CVR' : '—';
+
+  // ── Funnel bars ─────────────────────────────────────────────
+  const funnelSteps = [
+    {label:'Total Leads',  cnt:totalLeads,     cls:'s1'},
+    {label:'Logged In',    cnt:totalLogin,     cls:'s2'},
+    {label:'Demo Done',    cnt:totalDemo,      cls:'s3'},
+    {label:'Converted',    cnt:totalConverted, cls:'end'},
+  ];
+  const wrap = $('lead-funnel-bars');
+  funnelSteps.forEach((s,i)=>{
+    const prev  = i>0 ? funnelSteps[i-1].cnt : totalLeads;
+    const drop  = prev - s.cnt;
+    const dropPct = prev>0 ? Math.round(drop/prev*100) : 0;
+    const w     = totalLeads>0 ? (s.cnt/totalLeads*100).toFixed(1) : 0;
+    wrap.innerHTML += `<div class="funnel-row">
+      <div class="fn-label">${s.label}</div>
+      <div class="fn-track"><div class="fn-fill ${s.cls}" style="width:${w}%"></div></div>
+      <div class="fn-meta">
+        <span class="fn-pct">${s.cnt} <span style="color:var(--text-3);font-size:9px">(${w}%)</span></span>
+        ${drop>0?`<span class="fn-drop">−${drop} (${dropPct}%)</span>`:''}
+      </div>
+    </div>`;
+  });
+
+  // Empty funnel notice
+  if(totalLeads>0 && totalLogin===0){
+    wrap.innerHTML += `<div style="margin-top:10px;font-size:11px;color:var(--amber)">
+      ⚠ No logins yet — leads are very recent. Login rate will populate within 24–48h.
+    </div>`;
+  }
+
+  // ── Time to first lead ───────────────────────────────────────
+  const ttlData = so
+    .filter(r=>r.time_to_first_lead_sec && r.time_to_first_lead_sec!=='')
+    .map(r=>Math.round(n(r.time_to_first_lead_sec)));
+
+  if(ttlData.length){
+    const minT = Math.min(...ttlData);
+    const maxT = Math.max(...ttlData);
+    const avgT = Math.round(ttlData.reduce((a,v)=>a+v,0)/ttlData.length);
+    const medT = ttlData.sort((a,z)=>a-z)[Math.floor(ttlData.length/2)];
+
+    const fmt = s => s<60 ? s+'s' : s<3600 ? Math.round(s/60)+'m '+( s%60)+'s' : Math.round(s/3600)+'h '+Math.round((s%3600)/60)+'m';
+
+    $('ttl-stats').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="metric-cell"><div class="mc-label">Fastest</div><div class="mc-value green" style="font-size:18px">${fmt(minT)}</div></div>
+        <div class="metric-cell"><div class="mc-label">Median</div><div class="mc-value" style="font-size:18px">${fmt(medT)}</div></div>
+        <div class="metric-cell"><div class="mc-label">Average</div><div class="mc-value" style="font-size:18px">${fmt(avgT)}</div></div>
+        <div class="metric-cell"><div class="mc-label">Slowest</div><div class="mc-value amber" style="font-size:18px">${fmt(maxT)}</div></div>
+      </div>`;
+
+    // Scatter: x = time_to_first_lead_sec, y = total_leads
+    new Chart($('chart-time-to-lead'),{
+      type:'bar',
+      data:{
+        labels: so.filter(r=>r.time_to_first_lead_sec&&r.time_to_first_lead_sec!=='')
+                  .sort((a,z)=>n(a.time_to_first_lead_sec)-n(z.time_to_first_lead_sec))
+                  .map(r=>r.referral_code),
+        datasets:[{
+          label:'Seconds to first lead',
+          data: so.filter(r=>r.time_to_first_lead_sec&&r.time_to_first_lead_sec!=='')
+                  .sort((a,z)=>n(a.time_to_first_lead_sec)-n(z.time_to_first_lead_sec))
+                  .map(r=>Math.round(n(r.time_to_first_lead_sec))),
+          backgroundColor: RED,
+          borderRadius:3,
+          barThickness:20,
+        }]
+      },
+      options:{
+        plugins:{legend:{display:false}},
+        scales:{
+          y:{beginAtZero:true,grid:CHART_GRID,ticks:{...CHART_TICK,callback:v=>v+'s'}},
+          x:{grid:{display:false},ticks:CHART_TICK}
+        }
+      }
+    });
+  } else {
+    $('chart-time-to-lead').parentElement.innerHTML += '<div style="font-size:11px;color:var(--text-3);margin-top:8px">No time data available</div>';
+  }
+
+  // ── Per-partner table ─────────────────────────────────────────
+  const tbody = $('lead-partner-tbody');
+  const sorted = [...so].sort((a,z)=>n(z.total_leads)-n(a.total_leads));
+  sorted.forEach(r=>{
+    const v     = (r.e2_variant||'').toLowerCase();
+    const leads = n(r.total_leads);
+    const login = n(r.leads_with_login);
+    const demo  = n(r.leads_with_demo);
+    const conv  = n(r.leads_converted);
+    const cvr   = leads>0 ? pct(conv,leads) : '—';
+    const ttl   = r.time_to_first_lead_sec && r.time_to_first_lead_sec!=='' ?
+      Math.round(n(r.time_to_first_lead_sec))+'s' : '—';
+    const expInfo = (r.leads_experiment_info||'—').replace('PARTNER_IPT_PLAN:','');
+
+    tbody.innerHTML += `<tr class="pt-tr">
+      <td class="pt-td"><span class="pt-code">${r.referral_code||'—'}</span></td>
+      <td class="pt-td">${v?`<span class="pt-variant ${v}">${v.toUpperCase()}</span>`:'—'}</td>
+      <td class="pt-td mono" style="font-size:11px">${ttl}</td>
+      <td class="pt-td mono" style="font-weight:600;color:var(--text)">${leads}</td>
+      <td class="pt-td mono" style="${login>0?'color:var(--amber)':''}">${login}</td>
+      <td class="pt-td mono" style="${demo>0?'color:var(--blue)':''}">${demo}</td>
+      <td class="pt-td mono" style="${conv>0?'color:var(--green)':''}">${conv}</td>
+      <td class="pt-td mono" style="${conv>0?'color:var(--green)':''}">${cvr}</td>
+      <td class="pt-td" style="font-size:11px;color:var(--text-2)">${r.dominant_lead_source||'—'}</td>
+      <td class="pt-td"><span style="font-family:var(--mono);font-size:9px;padding:2px 6px;background:var(--s3);border-radius:3px;color:var(--text-2)">${expInfo}</span></td>
+    </tr>`;
+  });
+
+  // ── Lead source chart ─────────────────────────────────────────
+  const srcMap = {
+    'Partner Dashboard': so.reduce((s,r)=>s+n(r.leads_from_dashboard),0),
+    'Whatsapp Bot':      so.reduce((s,r)=>s+n(r.leads_from_wa_bot),0),
+    'Manual Upload':     so.reduce((s,r)=>s+n(r.leads_from_manual),0),
+    'Product Referral':  so.reduce((s,r)=>s+n(r.leads_from_product_referral),0),
+    'DB Upload':         so.reduce((s,r)=>s+n(r.leads_from_db),0),
+  };
+  const srcLabels = Object.keys(srcMap).filter(k=>srcMap[k]>0);
+  const srcVals   = srcLabels.map(k=>srcMap[k]);
+  new Chart($('chart-lead-source'),{
+    type:'doughnut',
+    data:{
+      labels:srcLabels,
+      datasets:[{data:srcVals,backgroundColor:[RED,'rgba(245,158,11,0.7)','rgba(96,165,250,0.7)','rgba(34,197,94,0.7)','rgba(255,255,255,0.2)'],borderWidth:0}]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11},color:'var(--text-2)'}}},cutout:'58%'}
+  });
+
+  // ── Experiment info chart ────────────────────────────────────
+  const expMap={};
+  so.forEach(r=>{
+    const e=(r.leads_experiment_info||'UNKNOWN').replace('PARTNER_IPT_PLAN:','');
+    expMap[e]=(expMap[e]||0)+n(r.total_leads);
+  });
+  const expLabels=Object.keys(expMap);
+  new Chart($('chart-lead-experiment'),{
+    type:'bar',
+    data:{
+      labels:expLabels,
+      datasets:[{label:'Leads',data:expLabels.map(k=>expMap[k]),backgroundColor:RED,borderRadius:4,barThickness:36}]
+    },
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:CHART_GRID,ticks:{...CHART_TICK,precision:0}},x:{grid:{display:false},ticks:CHART_TICK}}}
+  });
+}
+
+// ─── Channel Filter ─────────────────────────────────────────
+function setFilter(val){
+  window._activeFilter = val;
+
+  // Update pill styles
+  ['all','ap','tp'].forEach(v=>{
+    const el = $('fp-'+v);
+    if(!el) return;
+    el.className = 'filter-pill' + (v===val ? (v==='ap'?' active-ap':v==='tp'?' active-tp':' active') : '');
+  });
+
+  // Filter data: tp_flag values are 'TP' (=TP channel) and 'NON_TP' (=AP channel)
+  // Partners with no leads yet will have null tp_flag — include them in All only
+  const all = window._allData;
+  let filtered;
+  if(val === 'all') {
+    filtered = all;
+  } else if(val === 'ap') {
+    // AP = NON_TP flag, or no flag yet (new SO partners before first lead)
+    filtered = all.filter(r => !r.tp_flag || r.tp_flag === '' || r.tp_flag === 'NON_TP');
+  } else {
+    // TP = TP flag
+    filtered = all.filter(r => r.tp_flag === 'TP');
+  }
+
+  window._soData = filtered;
+
+  // Re-render all already-built pages with filtered data
+  // Clear rendered sections first
+  ['funnel-bars','e2-compare','calc-compare','partner-tbody',
+   'skip-table','heatmap-wrap','hm-legend','calc-pills',
+   'lead-funnel-bars','lead-partner-tbody'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML='';
+  });
+  // Destroy existing charts and rebuild
+  Chart.helpers.each(Chart.instances, c=>c.destroy());
+
+  const built = window._pagesBuilt;
+  buildOverview(filtered);
+  buildFunnel(filtered);
+  if(built.experiments){ buildExperiments(filtered); }
+  if(built.partners)   { buildPartners(filtered);    }
+  if(built.leads)      { buildLeads(filtered);       }
+
+  // Update nb badges
+  $('nb-partners').textContent  = filtered.length;
+  $('nb-partners2').textContent = filtered.length;
+  $('nb-leads').textContent     = filtered.filter(r=>b(r.ct_first_lead_event_fired))
+                                           .reduce((s,r)=>s+n(r.total_leads),0);
+
+  // Show filter state in sidebar subtitle
+  const fLabel = val==='ap'?'AP channel':val==='tp'?'TP channel':'All channels';
+  document.querySelector('.sb-subtitle').textContent = `Self-Onboarding · ${fLabel}`;
 }
 
 // ─── Theme ──────────────────────────────────────────────────
