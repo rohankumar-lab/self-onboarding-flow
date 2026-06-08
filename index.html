@@ -1084,6 +1084,42 @@ function buildFunnel(data){
     </td></tr></tfoot>`;
   }
 
+  // ── Journey heatmap ─────────────────────────────────────────
+  const hmScreens = ['W','Cu','Ca','Pr','Fe','Sh','FL'];
+  const hmKeys    = ['saw_welcome','saw_customers','saw_calculator','saw_process',
+                     'saw_features','saw_share_methods','saw_first_lead'];
+  const hmSorted  = [...data].sort((a,z) => n(z.screen_depth) - n(a.screen_depth));
+
+  let hmHTML = `<table class="heatmap">
+    <thead><tr>
+      <th class="hm-th" style="text-align:left;padding-left:8px">Partner</th>
+      <th class="hm-th">Var</th>
+      ${hmScreens.map(s=>`<th class="hm-th screen">${s}</th>`).join('')}
+      <th class="hm-th">Calc</th>
+      <th class="hm-th">Link</th>
+      <th class="hm-th">Depth</th>
+    </tr></thead><tbody>`;
+
+  hmSorted.forEach(r => {
+    const v = (r.e2_variant || '?').toLowerCase();
+    const dots = hmKeys.map((key, i) => {
+      const saw = b(r[key]);
+      const cls = saw ? 'yes' : 'no';
+      const lbl = saw ? '✓' : '—';
+      return `<td class="hm-cell"><div class="hm-dot ${cls}" title="${hmScreens[i]}: ${saw?'viewed':'not seen'}">${lbl}</div></td>`;
+    }).join('');
+    const depth = n(r.screen_depth);
+    hmHTML += `<tr class="hm-row">
+      <td style="padding:0 8px"><span style="font-family:var(--mono);font-size:10px;color:var(--text-2)">${r.referral_code||'—'}</span></td>
+      <td style="padding:0 6px"><div class="hm-variant ${v}">${v==='a'||v==='b'||v==='c' ? v.toUpperCase() : '—'}</div></td>
+      ${dots}
+      <td class="hm-cell"><div class="hm-dot ${b(r.calc_interacted)?'yes':'no'}">${b(r.calc_interacted)?'✓':'—'}</div></td>
+      <td class="hm-cell"><div class="hm-dot ${b(r.referral_link_copied)?'read':'no'}">${b(r.referral_link_copied)?'✓':'—'}</div></td>
+      <td style="padding:0 8px"><span style="font-family:var(--mono);font-size:12px;color:${depth>=6?'var(--green)':depth<=1?'var(--red)':'var(--text)'}">${depth}/7</span></td>
+    </tr>`;
+  });
+  hmHTML += '</tbody></table>';
+
   $('heatmap-wrap').innerHTML=hmHTML;
 
   $('hm-legend').innerHTML=`
@@ -1448,38 +1484,49 @@ function setFilter(val){
   if(val === 'all') {
     filtered = all;
   } else if(val === 'ap') {
-    // AP = NON_TP flag, or no flag yet (new SO partners before first lead)
-    filtered = all.filter(r => !r.tp_flag || r.tp_flag === '' || r.tp_flag === 'NON_TP');
+    // AP = NON_TP in leads table. Only filter partners who have a tp_flag.
+    // Partners without leads yet (null tp_flag) are excluded from AP/TP views.
+    filtered = all.filter(r => r.tp_flag === 'NON_TP');
   } else {
-    // TP = TP flag
+    // TP
     filtered = all.filter(r => r.tp_flag === 'TP');
+  }
+
+  // If filter produces empty set, fall back to All and notify
+  if(filtered.length === 0 && val !== 'all'){
+    filtered = all;
+    ['fp-all','fp-ap','fp-tp'].forEach(id => {
+      const el = $(id);
+      if(el) el.className = 'filter-pill' + (id==='fp-all' ? ' active' : '');
+    });
+    window._activeFilter = 'all';
+    document.querySelector('.sb-subtitle').textContent = 'Self-Onboarding · All channels';
+    return;
   }
 
   window._soData = filtered;
 
-  // Re-render all already-built pages with filtered data
-  // Clear rendered sections first
-  ['funnel-bars','e2-compare','calc-compare','partner-tbody',
-   'skip-table','heatmap-wrap','hm-legend','calc-pills',
-   'lead-funnel-bars','lead-partner-tbody'].forEach(id=>{
+  // Filter only applies to Customer Leads tab
+  // Other tabs show all SO flow partners regardless of channel
+  ['lead-funnel-bars','lead-partner-tbody'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.innerHTML='';
   });
-  // Destroy existing charts and rebuild
-  Chart.helpers.each(Chart.instances, c=>c.destroy());
+  // Destroy only the lead-page charts (by canvas id)
+  ['chart-time-to-lead','chart-lead-source','chart-lead-experiment'].forEach(id=>{
+    const canvas = document.getElementById(id);
+    if(canvas){
+      const existing = Chart.getChart(canvas);
+      if(existing) existing.destroy();
+    }
+  });
 
   const built = window._pagesBuilt;
-  buildOverview(filtered);
-  buildFunnel(filtered);
-  if(built.experiments){ buildExperiments(filtered); }
-  if(built.partners)   { buildPartners(filtered);    }
-  if(built.leads)      { buildLeads(filtered);       }
+  if(built.leads){ buildLeads(filtered); }
 
-  // Update nb badges
-  $('nb-partners').textContent  = filtered.length;
-  $('nb-partners2').textContent = filtered.length;
-  $('nb-leads').textContent     = filtered.filter(r=>b(r.ct_first_lead_event_fired))
-                                           .reduce((s,r)=>s+n(r.total_leads),0);
+  // Update leads badge only
+  $('nb-leads').textContent = filtered.filter(r=>b(r.ct_first_lead_event_fired))
+                                       .reduce((s,r)=>s+n(r.total_leads),0);
 
   // Show filter state in sidebar subtitle
   const fLabel = val==='ap'?'AP channel':val==='tp'?'TP channel':'All channels';
